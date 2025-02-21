@@ -1,0 +1,212 @@
+{% extends "template.html" %}
+{% block content %}
+{% with messages = get_flashed_messages() %}
+  {% if messages %}
+    <div class="modal fade" id="flashModal" tabindex="-1" role="dialog" aria-labelledby="flashModalLabel" aria-hidden="true">
+      <div class="modal-dialog modal-dialog-centered" role="document">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="flashModalLabel">提示</h5>
+            <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+              <span aria-hidden="true">&times;</span>
+            </button>
+          </div>
+          <div class="modal-body">
+            <ul>
+              {% for message in messages %}
+                <li>{{ message }}</li>
+              {% endfor %}
+            </ul>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-dismiss="modal">关闭</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      document.addEventListener('DOMContentLoaded', function() {
+        var flashModal = new bootstrap.Modal(document.getElementById('flashModal'));
+        flashModal.show();
+      });
+    </script>
+  {% endif %}
+{% endwith %}
+{% if timestamps|length > 0 %}
+  <div class="container">
+    <div class="slider-container">
+        <div class="row">
+        <div class="col-md-12 mb-4">
+            <div class="card rounded-lg">
+                <div class="card-body">
+                    <div class="card-text">
+                        {% for app in unique_apps %}
+                            <a href="{{ url_for('search', q="", app=app) }}"><span class="badge badge-pill badge-primary">{{ app }}</span></a>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+      <div id="timeNodes">
+        {% for node in time_nodes %}
+          <div class="time-node" style="left: {{ (1 - timestamps.index(node.timestamp) / (timestamps|length - 1)) * 0.578125 * 100 + 21.09375 }}%;">{{ node.desc }}</div>
+        {% endfor %}
+      </div>
+      <input type="range" class="slider custom-range" id="discreteSlider" min="0" max="{{timestamps|length - 1}}" step="1" value="{{timestamps|length - 1}}">
+      <div class="slider-value" id="sliderValue">{{timestamps[0] | timestamp_to_human_readable }}</div>
+    </div>
+    <div class="image-container" id="image-container">
+      <img id="timestampImage" src="/pictures/{{timestamps[0]}}.webp" alt="Image for timestamp">
+    </div>
+  </div>
+  <script>
+    const container = document.getElementById('image-container');
+    const timestamps = {{ timestamps|tojson }};
+    const slider = document.getElementById('discreteSlider');
+    const sliderValue = document.getElementById('sliderValue');
+    const timestampImage = document.getElementById('timestampImage');
+    let imgWidth = 0;
+    let imgHeight = 0;
+    // 从后台接口获取数据
+    async function fetchData(timestamp) {
+        try {
+            const response = await fetch('http://127.0.0.1:8082/get_ocr_text/' + timestamp);
+            if (!response.ok) {
+                throw new Error('网络响应错误');
+            }
+            const data = await response.json();
+            return data;
+        } catch (error) {
+            console.error('获取数据失败:', error);
+            return [];
+        }
+    }
+    
+    function debounce(func, wait) {
+        let timeout;
+        return function() {
+            const context = this;
+            const args = arguments;
+            clearTimeout(timeout);
+            timeout = setTimeout(() => func.apply(context, args), wait);
+        };
+    }
+    // 拖动滑块时，更新文本
+    async function updateText(timestamp) {
+        const textLabels = document.querySelectorAll('.text-label');
+        textLabels.forEach(textLabel => textLabel.remove());
+        const data = await fetchData(timestamp);
+        //数据为空时，不执行下面的代码
+        if (data.length === 0) {
+            return;
+        }
+        data.forEach(data =>{
+                const [coords,text,acurracy] = data;
+                const [x,y,w,h,abandon] = coords;
+                //如果text为空，则跳过
+                if(text === ''){
+                    return;
+                }
+                // 创建框线元素
+                const highlight = document.createElement('div');
+                highlight.style.left = `${x * imgWidth / timestampImage.naturalWidth}px`;
+                highlight.style.top = `${y * imgHeight / timestampImage.naturalHeight}px`;
+                highlight.style.width = `${w * imgWidth / timestampImage.naturalWidth}px`;
+                highlight.style.height = `${h * imgHeight / timestampImage.naturalHeight}px`;
+
+                // 创建文字标签元素
+                const textLabel = document.createElement('div');
+                textLabel.className = 'text-label';
+                textLabel.style.left = `${x * imgWidth / timestampImage.naturalWidth}px`;
+                textLabel.style.top = `${(y + h) * imgHeight / timestampImage.naturalHeight}px`;
+                textLabel.innerText = text;
+
+                // 添加点击事件，实现复制文本功能
+                textLabel.addEventListener('click', function() {
+                    const textArea = document.createElement('textarea');
+                    textArea.value = text;
+                    document.body.appendChild(textArea);
+                    textArea.select();
+                    document.execCommand('copy');
+                    document.body.removeChild(textArea);
+                    setTimeout(() => {
+                        toast.hide();
+                    })
+                    
+                });
+                // 将元素添加到页面中
+                container.appendChild(highlight);
+                container.appendChild(textLabel);
+        })
+    }
+    
+    //timestampImage.onload = (function() {
+    //    let isOnloadCalled = false;
+    //    return function() {
+    //    const reversedIndex = timestamps.length - 1 - slider.value;
+    //    const timestamp = timestamps[reversedIndex];
+    //    imgWidth = timestampImage.naturalWidth;
+    //    imgHeight = timestampImage.naturalHeight;
+    //    if (!isOnloadCalled) {
+    //        isOnloadCalled = true;
+    //        setTimeout(() => {
+    //            updateText(timestamp);
+    //            isOnloadCalled = false;
+    //        }, 1000); // 延时1秒执行
+    //    }
+    //    }
+    //})();
+
+    slider.addEventListener('input',function() {
+      const sliderValueElement = document.getElementById('sliderValue');
+      const timestampImageElement = document.getElementById('timestampImage');
+      const reversedIndex = timestamps.length - 1 - slider.value;
+      const timestamp = timestamps[reversedIndex];
+      sliderValue.textContent = new Date(timestamp * 1000).toLocaleString();  // Convert to human-readable format
+      timestampImage.src = `/pictures/${timestamp}.webp`;
+      //先清除之前的框线
+      const highlights = document.querySelectorAll('.highlight');
+      highlights.forEach(highlight => highlight.remove());
+    });
+
+    // Initialize the slider with a default value
+    slider.value = timestamps.length - 1;
+    sliderValue.textContent = new Date(timestamps[0] * 1000).toLocaleString();  // Convert to human-readable format
+    timestampImage.src = `/pictures/${timestamps[0]}.webp`;
+
+    // Add mouse wheel event listener to the slider
+    let isMouseOverSlider = false;
+
+    slider.addEventListener('mouseover', () => {
+        isMouseOverSlider = true;
+    });
+
+    slider.addEventListener('mouseout', () => {
+        isMouseOverSlider = false;
+    });
+
+    slider.addEventListener('wheel', (event) => {
+        if (!isMouseOverSlider) return;
+
+        event.preventDefault();
+
+        const delta = -Math.sign(event.deltaY);
+        const newValue = Math.max(0, Math.min(slider.value - delta, slider.max));
+
+        slider.value = newValue;
+        const reversedIndex = timestamps.length - 1 - slider.value;
+        const timestamp = timestamps[reversedIndex];
+        sliderValue.textContent = new Date(timestamp * 1000).toLocaleString();
+        timestampImage.src = `/pictures/${timestamp}.webp`;
+    });
+  </script>
+{% else %}
+  <div class="container">
+      <div class="alert alert-info" role="alert">
+          Nothing recorded yet, wait a few seconds.
+      </div>
+  </div>
+{% endif %}
+{% endblock %}

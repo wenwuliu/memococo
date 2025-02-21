@@ -1,0 +1,2 @@
+recursive-include memococo/static *
+recursive-include memococo/templates *

@@ -1,0 +1,29 @@
+{% extends "template.html" %}
+{% block content %}
+<!-- 在 settings.html 中 -->
+<form method="POST" class="needs-validation" style="width:60%;margin:auto;align:center" novalidate>
+    <h2>Settings</h2>
+    <div class="mb-3">
+      <label for="model" class="form-label">Model</label>
+      <input type="text" class="form-control" id="model" name="model" value="{{ settings['model'] }}" required disabled>
+      <div class="invalid-feedback">
+        Please enter a model.
+      </div>
+    </div>
+    <div class="mb-3">
+      <label for="ocr_tool" class="form-label">OCR Tool</label>
+      <input type="text" class="form-control" id="ocr_tool" name="ocr_tool" value="{{ settings['ocr_tool'] }}" required disabled>
+      <div class="invalid-feedback">
+        Please enter an OCR tool.
+      </div>
+    </div>
+    <div class="mb-3">
+      <label for="ignored_apps" class="form-label">Ignored Apps</label>
+      <input type="text" class="form-control" id="ignored_apps" name="ignored_apps" value="{{ ', '.join(settings['ignored_apps']) }}" required>
+      <div class="invalid-feedback">
+        Please enter ignored apps.
+      </div>
+    </div>
+    <button type="submit" class="btn btn-primary">Save</button>
+  </form>  
+{% endblock %}
