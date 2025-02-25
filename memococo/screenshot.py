@@ -128,7 +128,7 @@ def power_saving_mode(save_power):
     return False
     
 
-def record_screenshots_thread(ignored_apps, ignored_apps_updated, save_power = True):
+def record_screenshots_thread(ignored_apps, ignored_apps_updated, save_power = True,idle_time = 5):
     os.environ["TOKENIZERS_PARALLELISM"] = "false"
     dirDate = datetime.datetime.now()
     create_directory_if_not_exists(get_screenshot_path(dirDate))
@@ -136,14 +136,17 @@ def record_screenshots_thread(ignored_apps, ignored_apps_updated, save_power = T
     last_screenshots = take_screenshots()
     user_inactive_logged = False  # 添加标志位记录上一次用户是否处于非活动状态
     last_user_active_time = datetime.datetime.now()  # 添加变量记录上一次用户活动时间
+    default_idle_time = idle_time
+    # 间隔时间为5秒
     while True:
-        time.sleep(5)
+        time.sleep(idle_time)
         if ignored_apps_updated.is_set():
             ignored_apps_updated.clear()
             logger.info(f"Updated ignored_apps: {ignored_apps}")
         if not is_user_active():
             if not user_inactive_logged:
                 logger.info("User is inactive, sleeping...")
+                idle_time = 1
                 user_inactive_logged = True
             #如果距离上次用户活动时间超过3分钟，则开始OCR任务
             if (datetime.datetime.now() - last_user_active_time).total_seconds() > 30:
@@ -181,6 +184,7 @@ def record_screenshots_thread(ignored_apps, ignored_apps_updated, save_power = T
             continue
         else:
             user_inactive_logged = False
+            idle_time = default_idle_time
             last_user_active_time = datetime.datetime.now()  # 更新用户活动时间
         # print(f"Embedding: {embedding}")
         active_app_name = get_active_app_name()
