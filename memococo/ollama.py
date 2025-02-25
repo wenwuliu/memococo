@@ -2,6 +2,15 @@ import requests
 from memococo.config import logger
 
 def query_ollama(question, url="http://127.0.0.1:11434/api/generate", model="qwen2.5:3b"):
+    #如果未运行ollama服务，则返回question，判断url是否可达，不可达则返回question
+    try:
+        response = requests.get(url)
+        if response.status_code != 200:
+            logger.warning(f"ollama服务不可达，返回问题：{question}")
+            return question
+    except requests.exceptions.RequestException as e:
+        logger.warning(f"ollama服务不可达，返回问题：{question}")
+        return question
     # 定义问题前缀，用于指示模型需要提取关键词
     question_prefix="帮我提取下面这段查询语句的关键词，不要包含聊天、记录、对话、内容这种无意义的关键词，并以json数组的形式返回关键词列表,请注意仅回复json数组内容。查询语句如下:"
     # 将问题前缀与实际问题拼接成完整的问题

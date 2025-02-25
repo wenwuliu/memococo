@@ -52,7 +52,37 @@ def get_unique_apps() ->List[str]:
         ).fetchall()
         # 去掉空的内容
         return [result[0] for result in results if result[0]]
-
+    
+def get_newest_empty_text() -> Entry:
+    with get_db_connection() as conn:
+        c = conn.cursor()
+        result = c.execute(
+            "SELECT * FROM entries WHERE text = '' ORDER BY timestamp DESC LIMIT 1"
+        ).fetchone()
+        return Entry(*result) if result else None
+    
+def update_entry_text(entry_id: int, text: str, jsontext: str) -> None:
+    try:
+        with get_db_connection() as conn:
+            c = conn.cursor()
+            c.execute(
+                "UPDATE entries SET text = ?, jsontext = ? WHERE id = ?",
+                (text, jsontext, entry_id),
+            )
+            conn.commit()
+    except sqlite3.OperationalError as e:
+        print("Error updating entry:", e)
+        
+def remove_entry(entry_id: int) -> None:
+    try:
+        with get_db_connection() as conn:
+            c = conn.cursor()
+            c.execute("DELETE FROM entries WHERE id = ?", (entry_id,))
+            conn.commit()
+    except sqlite3.OperationalError as e:
+        print("Error removing entry:", e)
+    
+    
 def insert_entry(
     jsontext: str, timestamp: int, text: str, app: str, title: str
 ) -> None:

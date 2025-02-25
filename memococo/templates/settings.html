@@ -5,14 +5,18 @@
     <h2>Settings</h2>
     <div class="mb-3">
       <label for="model" class="form-label">Model</label>
-      <input type="text" class="form-control" id="model" name="model" value="{{ settings['model'] }}" required disabled>
+      <input type="text" class="form-control" id="model" name="model" value="{{ settings['model'] }}" required>
       <div class="invalid-feedback">
         Please enter a model.
       </div>
     </div>
     <div class="mb-3">
       <label for="ocr_tool" class="form-label">OCR Tool</label>
-      <input type="text" class="form-control" id="ocr_tool" name="ocr_tool" value="{{ settings['ocr_tool'] }}" required disabled>
+      <select class="form-control" id="ocr_tool" name="ocr_tool" required>
+        <option value="trwebocr" {% if settings['ocr_tool'] == 'trwebocr' %}selected{% endif %}>trwebocr</option>
+        <option value="easy_ocr" {% if settings['ocr_tool'] == 'easy_ocr' %}selected{% endif %}>easy_ocr</option>
+        <option value="tesseract" {% if settings['ocr_tool'] == 'tesseract' %}selected{% endif %}>tesseract</option>
+      </select>
       <div class="invalid-feedback">
         Please enter an OCR tool.
       </div>

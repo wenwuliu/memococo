@@ -1,18 +1,24 @@
 import requests
 import base64
-import cv2
-import pytesseract
-from pytesseract import Output
 from memococo.config import logger
 import json
+import cv2
 
 
-def extract_text_from_image(image):
-    # return easy_ocr(image)
-    return trwebocr(image)
-    # return tesseract_ocr(image)
+def extract_text_from_image(image,ocr_engine='trwebocr'):
+    if ocr_engine == 'easy_ocr':
+        return easy_ocr(image)
+    elif ocr_engine == 'tesseract':
+        return tesseract_ocr(image)
+    elif ocr_engine == 'trwebocr':
+        return trwebocr(image)
+    else:
+        logger.error(f'Invalid OCR engine: {ocr_engine}')
+        return None
 
 def tesseract_ocr(image):
+    import pytesseract
+    from pytesseract import Output
     # 使用Tesseract OCR进行图像文本提取
     # 这里假设你已经安装了Tesseract OCR，并且将其添加到了系统的PATH中
     # 你需要根据你的实际情况调整Tesseract的路径
@@ -28,7 +34,7 @@ def tesseract_ocr(image):
     result_json = json.dumps(result, ensure_ascii=False)
     return result_json
 
-def trwebocr(image):        
+def trwebocr(image):
     #改为采用本地OCR模型，POST请求http://127.0.0.1:8089/api/tr-run/，通过表单方式，上传图片
     #image来源为screenshot = np.array(sct.grab(monitor_))，即截图的numpy数组，需要转换为base64编码的字符串
     #将图片转换为base64编码的字符串
@@ -63,13 +69,29 @@ def image_preprocessing(image):
     
     # # 返回二值化后的图像
     # return binary_image
-    
+
+def easy_ocr_default(obj):
+    result = []
+    for item in obj:
+        result.append([item[0], item[1], item[2]])
+    return result
     
 def easy_ocr(image):
     import easyocr
     reader = easyocr.Reader(['ch_sim','en'],gpu=True)
     result = reader.readtext(image)
-    return result
+    result_format_json = []
+    for item in result:
+        x1, y1 = item[0][0]
+        x2, y2 = item[0][1]
+        x3, y3 = item[0][2]
+        x4, y4 = item[0][3]
+        w = x4 - x1
+        h = y4 - y1
+        result_format_json.append([[x1, y1, w, h, 0], item[1], item[2]])
+    # todo:change result_json to text
+    result_json = json.dumps(result_format_json, ensure_ascii=False,default=easy_ocr_default)
+    return result_json
 
 # main方法测试
 if __name__ == "__main__":
@@ -84,7 +106,7 @@ if __name__ == "__main__":
             screenshot = screenshot[:, :, [2, 1, 0]]
             screenshots.append(screenshot)
     for image in screenshots:
-        response = extract_text_from_image(image)
+        response = extract_text_from_image(image,ocr_engine='easy_ocr')
         logger.info(response)
         #将json数组中所有的第二个元素抽取出来，并拼接成字符串
         text = ""

@@ -1,0 +1,7 @@
+#忽略vsode配置
+.vscode
+
+#忽略pycache配置
+__pycache__/
+
+memococo/__pycache__/

@@ -7,7 +7,7 @@ import json
 from PIL import Image
 import datetime
 from memococo.config import screenshots_path, args,app_name_en,app_name_cn,logger
-from memococo.database import insert_entry
+from memococo.database import insert_entry,get_newest_empty_text,update_entry_text,remove_entry
 import subprocess
 from memococo.ocr import extract_text_from_image
 import pyautogui
@@ -117,6 +117,16 @@ def get_cpu_temperature():
         logger.warning(f"Error getting CPU temperature: {e}")
     return None
 
+def power_saving_mode(save_power):
+    if save_power:
+        battery = psutil.sensors_battery()
+        if battery.power_plugged == False:
+            logger.info(f"battery percentage: {battery.percent}")
+        if battery.percent < 70 and battery.power_plugged == False:
+            logger.info(f"Power saving mode activated, battery percentage: {battery.percent}")
+            return True
+    return False
+    
 
 def record_screenshots_thread(ignored_apps, ignored_apps_updated, save_power = True):
     os.environ["TOKENIZERS_PARALLELISM"] = "false"
@@ -125,6 +135,7 @@ def record_screenshots_thread(ignored_apps, ignored_apps_updated, save_power = T
     logger.info("Started recording screenshots...")
     last_screenshots = take_screenshots()
     user_inactive_logged = False  # 添加标志位记录上一次用户是否处于非活动状态
+    last_user_active_time = datetime.datetime.now()  # 添加变量记录上一次用户活动时间
     while True:
         time.sleep(5)
         if ignored_apps_updated.is_set():
@@ -134,9 +145,43 @@ def record_screenshots_thread(ignored_apps, ignored_apps_updated, save_power = T
             if not user_inactive_logged:
                 logger.info("User is inactive, sleeping...")
                 user_inactive_logged = True
+            #如果距离上次用户活动时间超过3分钟，则开始OCR任务
+            if (datetime.datetime.now() - last_user_active_time).total_seconds() > 30:
+                # 如果处于省电模式，则跳过OCR任务
+                if power_saving_mode(save_power):
+                    continue
+                logger.info("User has been inactive for more than 30 seconds, starting OCR task...")
+                entry = get_newest_empty_text()
+                if entry:
+                    logger.info(f"Processing entry: {entry}")
+                    # 将entry.timestamp转换为datetime对象
+                    screenshot_path = get_screenshot_path(datetime.datetime.fromtimestamp(entry.timestamp))
+                    image_path = os.path.join(screenshot_path, f"{entry.timestamp}.webp")
+                    image = Image.open(image_path)
+                    # 将图片转为nparray
+                    image = np.array(image)
+                    ocr_json_text = extract_text_from_image(image)
+                    ocr_text = ''
+                    if image is not None and ocr_json_text:
+                        for item in json.loads(ocr_json_text):
+                            # 分割text，按行分割
+                            ocr_text += item[1] + ' '
+                        while True:
+                            # print(f"File size: {os.path.getsize(image_path) / 1024} KB, File name: {image_path}")
+                            if os.path.getsize(image_path) <= 200 * 1024:
+                                break
+                            compress_img_PIL(image_path, f"{timestamp}.webp")
+                        update_entry_text(entry.id, ocr_text, ocr_json_text)
+                        logger.info("ocr task finished")
+                    else:
+                        logger.info("Image is None")
+                        remove_entry(entry.id)
+                else:
+                    logger.info("No ocr task to do...")
             continue
         else:
             user_inactive_logged = False
+            last_user_active_time = datetime.datetime.now()  # 更新用户活动时间
         # print(f"Embedding: {embedding}")
         active_app_name = get_active_app_name()
         active_window_title = get_active_window_title()
@@ -187,6 +232,9 @@ def record_screenshots_thread(ignored_apps, ignored_apps_updated, save_power = T
             if cpu_usage > 80 or cpu_temperature > 70:
                 logger.info(f"CPU占用过高，不进行ocr，当前cpu占用：{cpu_usage}%，当前温度：{cpu_temperature}°C")
                 json_text = ""
+            elif power_saving_mode(save_power):
+                logger.info(f"省电模式开启，不进行ocr")
+                json_text = ""
             else:
                 if window_shot is not None:
                     json_text = extract_text_from_image(window_shot)
@@ -199,12 +247,16 @@ def record_screenshots_thread(ignored_apps, ignored_apps_updated, save_power = T
             if dirDate != datetime.datetime.now().date():
                 dirDate = datetime.datetime.now()
                 create_directory_if_not_exists(get_screenshot_path(dirDate))
-            # 逐步降低图像的质量，直到图像的大小小于200k
-            while True:
-                # print(f"File size: {os.path.getsize(image_path) / 1024} KB, File name: {image_path}")
-                compress_img_PIL(image_path, f"{timestamp}.webp")
-                if os.path.getsize(image_path) <= 200 * 1024:
-                    break
+            # 如果json_text为空，则暂不压缩图片，直接保存
+            if json_text:
+                # 逐步降低图像的质量，直到图像的大小小于200k
+                while True:
+                    # print(f"File size: {os.path.getsize(image_path) / 1024} KB, File name: {image_path}")
+                    compress_img_PIL(image_path, f"{timestamp}.webp")
+                    if os.path.getsize(image_path) <= 200 * 1024:
+                        break
+            else:
+                logger.info("ocr识别结果为空，不压缩图片")
             # print(f"Detected change on monitor {i + 1}: {text}")
             endTime = time.time()
             #耗时计算时，保留小数点后两位
@@ -214,7 +266,6 @@ def record_screenshots_thread(ignored_apps, ignored_apps_updated, save_power = T
                 for item in json.loads(json_text):
                     # 分割text，按行分割
                     text += item[1] + ' '
-            logger.info(f"ocr识别结果：{text}")
             insert_entry(
                 json_text, timestamp, text, active_app_name, active_window_title
             )

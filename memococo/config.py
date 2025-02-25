@@ -7,7 +7,7 @@ from multiprocessing import Manager,Event
 app_name_cn = "时光胶囊"
 app_name_en = "MemoCoco"
 main_app_name = app_name_en
-app_version = "2.1.12"
+app_version = "2.1.13"
 
 parser = argparse.ArgumentParser(description=main_app_name)
 
@@ -101,13 +101,15 @@ create_directory_if_not_exists(screenshots_path)
 
 # logger配置
 import logging
+from logging.handlers import RotatingFileHandler
 logger = logging.getLogger("memococo")
 logger.setLevel(logging.DEBUG)
-handler = logging.FileHandler(os.path.join(appdata_folder, "memococo.log"))
-handler.setLevel(logging.DEBUG)
 formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-handler.setFormatter(formatter)
-logger.addHandler(handler)
 console = logging.StreamHandler()
 console.setLevel(logging.INFO)
 logger.addHandler(console)
+#设置logger最大文件大小为10MB，最多保留5个备份文件
+file_handler = RotatingFileHandler(os.path.join(appdata_folder, "memococo.log"), maxBytes=10*1024*1024, backupCount=4)
+file_handler.setLevel(logging.DEBUG)
+file_handler.setFormatter(formatter)
+logger.addHandler(file_handler)

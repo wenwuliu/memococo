@@ -9,15 +9,9 @@ long_description = readme_path.read_text(encoding="utf-8")
 
 # 基础依赖包
 install_requires = [
-    "Flask>=3.0.3",  # 使用>=允许更新到更新的兼容版本
+    "Flask>=3.0.3", 
     "numpy>=1.26.4",
     "mss>=9.0.1", 
-    "torch>=2.2.0",
-    "torchvision>=0.17.0",
-    "shapely>=2.0.4",
-    "h5py>=3.11.0",
-    "rapidfuzz>=3.9.3",
-    "Pillow>=10.3.0",
     "toml>=0.10.2",
     "pyautogui>=0.9.54",
 ]
@@ -36,7 +30,7 @@ if current_os in OS_DEPENDENCIES:
 
 setup(
     name="MemoCoco",
-    version="2.1.12",
+    version="2.1.13",
     description="MemoCoco - 时间胶囊",
     long_description=long_description,
     long_description_content_type="text/markdown",

@@ -4,11 +4,11 @@ MemoCoco is a fully open-source, privacy-first alternative to proprietary soluti
 this project is based on https://github.com/openrecall/openrecall openrecall project,Enriched and refined program details.
 
 include those features:
-- 1. ocr model migranted to trwebocr,mainly for chinese language and english language.
-- 2. search engine replaced by ollama,so you can use any model that ollama support.
-- 3. Image storage path optimization with folder slice mode.
-- 4. New picture compression function, to ensure that the size of a single picture is less than 200K, it is expected that the size of a single day file is less than 200M.
-- 5. Optimize the search function, support through the app option to query the corresponding content.
+- 1. **OCR MIGRANT** ocr model migranted to trwebocr,mainly for chinese language and english language.
+- 2. **LOCAL AI WITH OLLAMA** search engine replaced by ollama,so you can use any model that ollama support.
+- 3. **OPTIMIZE STORAGE PATH** Image storage path optimization with folder slice mode.
+- 4. **PICTURE COMPRESSION** New picture compression function, to ensure that the size of a single picture is less than 200K, it is expected that the size of a single day file is less than 200M.
+- 5. **APP SEARCH** Optimize the search function, support through the app option to query the corresponding content.
 
 
 ## OpenRecall Original Features
