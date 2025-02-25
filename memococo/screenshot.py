@@ -96,7 +96,7 @@ def take_screenshots(monitor=1):
                 
     return screenshots
 
-def compress_img_PIL(img_path,img_name, compress_rate=0.9, show=False):
+def compress_img_PIL(img_path, compress_rate=0.9, show=False):
         img = Image.open(img_path)
         w, h = img.size
         img_resize = img.resize((int(w*compress_rate), int(h*compress_rate)))
@@ -164,6 +164,9 @@ def record_screenshots_thread(ignored_apps, ignored_apps_updated, save_power = T
                     # 将图片转为nparray
                     image = np.array(image)
                     ocr_json_text = extract_text_from_image(image)
+                    # 如果ocr_json_text为[]，则ocr_text为空字符串
+                    if ocr_json_text == '[]':
+                        ocr_json_text = ''
                     ocr_text = ''
                     if image is not None and ocr_json_text:
                         for item in json.loads(ocr_json_text):
@@ -173,7 +176,7 @@ def record_screenshots_thread(ignored_apps, ignored_apps_updated, save_power = T
                             # print(f"File size: {os.path.getsize(image_path) / 1024} KB, File name: {image_path}")
                             if os.path.getsize(image_path) <= 200 * 1024:
                                 break
-                            compress_img_PIL(image_path, f"{timestamp}.webp")
+                            compress_img_PIL(image_path)
                         update_entry_text(entry.id, ocr_text, ocr_json_text)
                         logger.info("ocr task finished")
                     else:
@@ -256,7 +259,7 @@ def record_screenshots_thread(ignored_apps, ignored_apps_updated, save_power = T
                 # 逐步降低图像的质量，直到图像的大小小于200k
                 while True:
                     # print(f"File size: {os.path.getsize(image_path) / 1024} KB, File name: {image_path}")
-                    compress_img_PIL(image_path, f"{timestamp}.webp")
+                    compress_img_PIL(image_path)
                     if os.path.getsize(image_path) <= 200 * 1024:
                         break
             else:
