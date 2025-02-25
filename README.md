@@ -25,7 +25,7 @@ include those features:
 
 To install:
 ```
-python3 -m pip install --upgrade --no-cache-dir git+https://e.coding.net/liuwenwu/projectLiu/memococo.git
+python3 -m pip install --upgrade --no-cache-dir git+https://github.com/wenwuliu/memococo.git
 ```
 
 To run:
