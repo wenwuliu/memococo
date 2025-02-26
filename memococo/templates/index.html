@@ -158,6 +158,8 @@
     //    }
     //    }
     //})();
+    var timeoutId;
+    var timeoutId1;
 
     slider.addEventListener('input',function() {
       const sliderValueElement = document.getElementById('sliderValue');
@@ -165,10 +167,15 @@
       const reversedIndex = timestamps.length - 1 - slider.value;
       const timestamp = timestamps[reversedIndex];
       sliderValue.textContent = new Date(timestamp * 1000).toLocaleString();  // Convert to human-readable format
-      timestampImage.src = `/pictures/${timestamp}.webp`;
       //先清除之前的框线
       const highlights = document.querySelectorAll('.highlight');
       highlights.forEach(highlight => highlight.remove());
+      //清除之前的定时器
+      clearTimeout(timeoutId);
+      //设置新的定时器
+      timeoutId = setTimeout(() => {
+        timestampImage.src = `/pictures/${timestamp}.webp`;
+      }, 200);
     });
 
     // Initialize the slider with a default value
@@ -199,7 +206,12 @@
         const reversedIndex = timestamps.length - 1 - slider.value;
         const timestamp = timestamps[reversedIndex];
         sliderValue.textContent = new Date(timestamp * 1000).toLocaleString();
-        timestampImage.src = `/pictures/${timestamp}.webp`;
+        //清除之前的定时器
+        clearTimeout(timeoutId1);
+        //设置新的定时器
+        timeoutId1 = setTimeout(() => {
+          timestampImage.src = `/pictures/${timestamp}.webp`;
+        }, 200);
     });
   </script>
 {% else %}

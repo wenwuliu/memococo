@@ -14,6 +14,8 @@ install_requires = [
     "mss>=9.0.1", 
     "toml>=0.10.2",
     "pyautogui>=0.9.54",
+    "ffmpeg-python>=0.2.0",
+    "expiringdict>=1.2.2"
 ]
 
 # 操作系统特定依赖
@@ -30,7 +32,7 @@ if current_os in OS_DEPENDENCIES:
 
 setup(
     name="MemoCoco",
-    version="2.1.16",
+    version="2.1.17",
     description="MemoCoco - 时间胶囊",
     long_description=long_description,
     long_description_content_type="text/markdown",

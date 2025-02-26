@@ -1,18 +1,16 @@
 from threading import Thread
-
-import numpy as np
-from flask import Flask, request, send_from_directory,redirect, url_for,render_template,flash
-from jinja2 import BaseLoader
+from flask import Flask, request, send_from_directory,redirect, url_for,render_template,flash,send_file,Response
 import os
-
+import cv2
+import io
+from expiringdict import ExpiringDict
 import json,jsonify
 import datetime
 from memococo.config import appdata_folder, screenshots_path, app_name_cn, app_version,get_settings,save_settings,ignored_apps,ignored_apps_updated,logger
 from memococo.database import create_db, get_all_entries, get_timestamps, get_unique_apps,get_ocr_text
 from memococo.ollama import query_ollama
-# from openrecall.nlp import cosine_similarity, get_embedding
 from memococo.screenshot import record_screenshots_thread
-from memococo.utils import human_readable_time, timestamp_to_human_readable
+from memococo.utils import human_readable_time, timestamp_to_human_readable,ImageVideoTool,get_folder_paths
 from memococo.app_map import get_app_names_by_app_codes,get_app_code_by_app_name
 import time
 
@@ -22,6 +20,8 @@ app.secret_key = 'uuid-14f9a9-4a8c-8e8a-9c4d-9f7b8f7b8f7b'
 
 app.jinja_env.filters["human_readable_time"] = human_readable_time
 app.jinja_env.filters["timestamp_to_human_readable"] = timestamp_to_human_readable
+
+tool_list = ExpiringDict(max_len=100, max_age_seconds=60*60*6)
 
 def generate_time_nodes(current_timestamps):
     # 定义时间间隔（单位：秒）
@@ -51,6 +51,7 @@ def generate_time_nodes(current_timestamps):
     # 保留最多三个，最后三个时间
     time_nodes = time_nodes[-3:]
     return time_nodes
+
   
 @app.before_request
 def load_data():
@@ -152,12 +153,25 @@ def settings():
 
 @app.route("/pictures/<filename>")
 def serve_image(filename):
+    start_time = time.time()
     #解析文件名，获取时间戳
     timestamp = filename.split('.')[0]
     #根据时间戳，获取年月日，拼接为文件路径
     year, month, day = datetime.datetime.fromtimestamp(int(timestamp)).strftime('%Y'), datetime.datetime.fromtimestamp(int(timestamp)).strftime('%m'), datetime.datetime.fromtimestamp(int(timestamp)).strftime('%d')
     dir = os.path.join(screenshots_path, year, month, day)
-    return send_from_directory(dir, filename)
+    tool = tool_list.get(dir)
+    if tool is None:
+        tool = ImageVideoTool(dir)
+        tool_list[dir] = tool
+    if tool.is_backed_up():
+        byte_stream = tool.query_image(timestamp)
+        response = Response(byte_stream, mimetype='image/jpeg')
+        response.headers['Content-Disposition'] = f'attachment; filename={filename}'
+        return response
+    else:
+        end_time = time.time()
+        logger.info(f"query image time: {end_time - start_time}")
+        return send_from_directory(dir, filename)
 
 @app.route("/get_ocr_text/<timestamp>")
 def get_ocr_text_by_timestamp(timestamp):
@@ -169,6 +183,34 @@ def get_ocr_text_by_timestamp(timestamp):
     else:
         return data
     
+@app.route("/unbacked_up_folders")
+def unbacked_up_folders():
+    # 获取 screenshots_path 下的所有文件夹
+    all_folders = get_folder_paths(screenshots_path, 0, 30)
+    # 筛选出未备份的文件夹
+    unbacked_up_folders = [folder for folder in all_folders if not ImageVideoTool(folder).is_backed_up()]
+    # 将未备份的文件夹传递给模板
+    return render_template("unbacked_up_folders.html", folders=unbacked_up_folders)
+
+def compress_folder_thread(folder):
+    # 创建 ImageVideoTool 实例
+    tool = ImageVideoTool(folder)
+    # 调用 compress 方法
+    tool.images_to_video( sort_by="time")
+    
+@app.route("/compress_folder", methods=["POST"])
+def compress_folder():
+    # 从请求的 JSON 数据中获取文件夹路径
+    data = request.get_json()
+    folder = data.get("folder")
+    logger.info(folder)
+    if not folder:
+        return jsonify({"error": "No folder provided"}), 400
+    #使用新线程，防止阻塞
+    t = Thread(target=compress_folder_thread, args=(folder,))
+    t.start()
+    # 重定向到未备份文件夹页面
+    return redirect(url_for("unbacked_up_folders"))
 
 if __name__ == "__main__":
     create_db()

@@ -18,7 +18,6 @@ from memococo.utils import (
     is_user_active,
 )
 
-
 def get_screenshot_path(date):
     return os.path.join(screenshots_path, date.strftime("%Y/%m/%d"))
 
@@ -128,7 +127,7 @@ def power_saving_mode(save_power):
     return False
     
 
-def record_screenshots_thread(ignored_apps, ignored_apps_updated, save_power = True,idle_time = 5):
+def record_screenshots_thread(ignored_apps, ignored_apps_updated, save_power = True,idle_time = 5,enable_compress = False):
     os.environ["TOKENIZERS_PARALLELISM"] = "false"
     dirDate = datetime.datetime.now()
     create_directory_if_not_exists(get_screenshot_path(dirDate))
@@ -172,18 +171,20 @@ def record_screenshots_thread(ignored_apps, ignored_apps_updated, save_power = T
                         for item in json.loads(ocr_json_text):
                             # 分割text，按行分割
                             ocr_text += item[1] + ' '
-                        while True:
-                            # print(f"File size: {os.path.getsize(image_path) / 1024} KB, File name: {image_path}")
-                            if os.path.getsize(image_path) <= 200 * 1024:
-                                break
-                            compress_img_PIL(image_path)
+                        if enable_compress:
+                            while True:
+                                # print(f"File size: {os.path.getsize(image_path) / 1024} KB, File name: {image_path}")
+                                if os.path.getsize(image_path) <= 200 * 1024:
+                                    break
+                                compress_img_PIL(image_path)
                         update_entry_text(entry.id, ocr_text, ocr_json_text)
                         logger.info("ocr task finished")
                     else:
                         logger.info("Image is None")
                         remove_entry(entry.id)
                 else:
-                    logger.info("No ocr task to do...")
+                    #没有ocr任务
+                    logger.info("No OCR task..")
             continue
         else:
             user_inactive_logged = False
@@ -256,12 +257,13 @@ def record_screenshots_thread(ignored_apps, ignored_apps_updated, save_power = T
                 create_directory_if_not_exists(get_screenshot_path(dirDate))
             # 如果json_text为空，则暂不压缩图片，直接保存
             if json_text:
-                # 逐步降低图像的质量，直到图像的大小小于200k
-                while True:
-                    # print(f"File size: {os.path.getsize(image_path) / 1024} KB, File name: {image_path}")
-                    compress_img_PIL(image_path)
-                    if os.path.getsize(image_path) <= 200 * 1024:
-                        break
+                if enable_compress:
+                    # 逐步降低图像的质量，直到图像的大小小于200k
+                    while True:
+                        # print(f"File size: {os.path.getsize(image_path) / 1024} KB, File name: {image_path}")
+                        compress_img_PIL(image_path)
+                        if os.path.getsize(image_path) <= 200 * 1024:
+                            break
             else:
                 logger.info("ocr识别结果为空，不压缩图片")
             # print(f"Detected change on monitor {i + 1}: {text}")

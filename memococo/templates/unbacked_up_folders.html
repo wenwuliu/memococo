@@ -1,0 +1,52 @@
+{% extends "template.html" %}
+
+{% block content %}
+<div class="container">
+  <h1 class="my-4">未备份的文件夹</h1>
+  <ul class="list-group">
+    {% for folder in folders %}
+      <li class="list-group-item d-flex justify-content-between align-items-center">
+        {{ folder }}
+        <form action="{{ url_for('compress_folder') }}" method="post" id="compress-form-{{ loop.index }}">
+          <input type="hidden" name="folder" value="{{ folder }}">
+          <button type="submit" class="btn btn-primary">压缩</button>
+        </form>
+        {% if folder in compressing_folders %}
+          <span class="badge badge-warning">压缩中...</span>
+        {% endif %}
+      </li>
+    {% endfor %}
+  </ul>
+</div>
+
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    {% for folder in folders %}
+    document.getElementById('compress-form-{{ loop.index }}').addEventListener('submit', function(event) {
+      event.preventDefault();
+      var form = event.target;
+      var data = {
+        folder: form.elements['folder'].value
+      };
+      fetch(form.action, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(data)
+      }).then(response => {
+        if (!response.ok) {
+          throw new Error('Network response was not ok ' + response.statusText);
+        }
+        return response.json();
+      }).then(data => {
+        // 处理响应数据
+        console.log(data);
+      }).catch(error => {
+        console.error('There has been a problem with your fetch operation:', error);
+      });
+    });
+    {% endfor %}
+  });
+</script>
+{% endblock %}
