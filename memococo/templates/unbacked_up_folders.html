@@ -11,9 +11,6 @@
           <input type="hidden" name="folder" value="{{ folder }}">
           <button type="submit" class="btn btn-primary">压缩</button>
         </form>
-        {% if folder in compressing_folders %}
-          <span class="badge badge-warning">压缩中...</span>
-        {% endif %}
       </li>
     {% endfor %}
   </ul>
@@ -45,6 +42,11 @@
       }).catch(error => {
         console.error('There has been a problem with your fetch operation:', error);
       });
+      //提交表单后等待2s，然后刷新页面
+      setTimeout(function() {
+        location.reload();
+      }, 2000);
+    }
     });
     {% endfor %}
   });

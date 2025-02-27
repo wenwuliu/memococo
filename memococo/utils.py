@@ -271,7 +271,6 @@ class ImageVideoTool:
     def is_backed_up(self):
         return os.path.exists(self.mapping_file)
 
-
     def images_to_video(self, 
                         sort_by: str = "name", 
                         image_extensions: List[str] = [".jpg", ".jpeg", ".png",".webp"]):
@@ -320,7 +319,7 @@ class ImageVideoTool:
             "-i", self.image_folder + "/%03d.webp",         # 输入文件名模式
             "-c:v", "h264",           # 视频编码器
             "-crf", f"{self.crf}",            # CRF值（视频质量）
-            "-preset", "slow",       # 编码速度（慢=高质量）
+            "-preset", "veryslow",       # 编码速度（慢=高质量）
             "-y", self.output_video
         ]
 
@@ -396,18 +395,21 @@ class ImageVideoTool:
             return None
         
 if __name__ == "__main__":
-    folder = get_folder_paths("/home/liuwenwu/.local/share/MemoCoco/screenshots",0,30)
-    print(folder)
-    # import time
-    # start_time = time.time()
-    # tool = ImageVideoTool("/home/liuwenwu/.local/share/MemoCoco/screenshots/2025/02/14")
+    # folder = get_folder_paths("/home/liuwenwu/.local/share/MemoCoco/screenshots",0,30)
+    # print(folder)
+    import time
+    start_time = time.time()
+    tool = ImageVideoTool("/home/liuwenwu/.local/share/MemoCoco/screenshots/2025/02/testhveryslow")
     # # 转换图片（按文件名排序）
-    # # tool.images_to_video( sort_by="time")
-
-    # byte_stream = tool.query_image("1739516749.webp")
-    # if byte_stream:
-    #     # 提取图片（支持模糊查询）
-    #     end_time = time.time()
-    #     print(f"程序运行时间：{end_time - start_time:.2f}秒")
-    # else:
-    #     print("未找到匹配的图片")
+    # tool.images_to_video( sort_by="time")
+    # time.sleep(1)
+    end_time = time.time()
+    print(f"程序加载工具：{end_time - start_time:.2f}秒")
+    start_time = time.time()
+    byte_stream = tool.query_image("1740621493.webp")
+    if byte_stream:
+        # 提取图片（支持模糊查询）
+        end_time = time.time()
+        print(f"程序提取图像：{end_time - start_time:.2f}秒")
+    else:
+        print("未找到匹配的图片")
