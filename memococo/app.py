@@ -21,8 +21,6 @@ app.secret_key = 'uuid-14f9a9-4a8c-8e8a-9c4d-9f7b8f7b8f7b'
 app.jinja_env.filters["human_readable_time"] = human_readable_time
 app.jinja_env.filters["timestamp_to_human_readable"] = timestamp_to_human_readable
 
-tool_list = ExpiringDict(max_len=100, max_age_seconds=60*60*6)
-
 def generate_time_nodes(current_timestamps):
     # 定义时间间隔（单位：秒）
     intervals = [
@@ -107,7 +105,7 @@ def search():
         if app_code:
             sorted_entries = [entry for entry in sorted_entries if entry["entry"].app == app_code]
         # 将sorted_entries按count字段降序排列
-        sorted_entries = sorted(sorted_entries, key=lambda x: x["count"], reverse=True)[:100]
+        sorted_entries = sorted(sorted_entries, key=lambda x: x["count"], reverse=True)[:50]
     return render_template(
         "search.html",
         entries=[entry["entry"] for entry in sorted_entries],
@@ -153,24 +151,19 @@ def settings():
 
 @app.route("/pictures/<filename>")
 def serve_image(filename):
-    start_time = time.time()
     #解析文件名，获取时间戳
     timestamp = filename.split('.')[0]
     #根据时间戳，获取年月日，拼接为文件路径
     year, month, day = datetime.datetime.fromtimestamp(int(timestamp)).strftime('%Y'), datetime.datetime.fromtimestamp(int(timestamp)).strftime('%m'), datetime.datetime.fromtimestamp(int(timestamp)).strftime('%d')
     dir = os.path.join(screenshots_path, year, month, day)
-    tool = tool_list.get(dir)
-    if tool is None:
-        tool = ImageVideoTool(dir)
-        tool_list[dir] = tool
+        
+    tool = ImageVideoTool(dir)
     if tool.is_backed_up():
         byte_stream = tool.query_image(timestamp)
         response = Response(byte_stream, mimetype='image/jpeg')
         response.headers['Content-Disposition'] = f'attachment; filename={filename}'
         return response
     else:
-        end_time = time.time()
-        logger.info(f"query image time: {end_time - start_time}")
         return send_from_directory(dir, filename)
 
 @app.route("/get_ocr_text/<timestamp>")

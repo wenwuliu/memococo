@@ -11,7 +11,7 @@ def get_app_code_by_app_name(app_name):
     for app_code, name in app_map.items():
         if name == app_name:
             return app_code
-    return None
+    return app_name
 
 # appname与appcode对应关系
 app_map = {

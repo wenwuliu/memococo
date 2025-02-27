@@ -378,7 +378,6 @@ class ImageVideoTool:
         if len(matches) > 1:
             logger.warning(f"Multiple matches found: {matches}. Using first match.")        
         target = matches[0]
-        logger.info(f"Match found: {target}")
         
         # 3. 提取帧（使用OpenCV优化效率）<button class="citation-flag" data-index="5"><button class="citation-flag" data-index="6">
         
@@ -399,14 +398,24 @@ if __name__ == "__main__":
     # print(folder)
     import time
     start_time = time.time()
-    tool = ImageVideoTool("/home/liuwenwu/.local/share/MemoCoco/screenshots/2025/02/testhveryslow")
+    tool = ImageVideoTool("/home/liuwenwu/.local/share/MemoCoco/screenshots/2025/02/14")
     # # 转换图片（按文件名排序）
     # tool.images_to_video( sort_by="time")
     # time.sleep(1)
     end_time = time.time()
     print(f"程序加载工具：{end_time - start_time:.2f}秒")
     start_time = time.time()
-    byte_stream = tool.query_image("1740621493.webp")
+    byte_stream = tool.query_image("1739516282")
+    if byte_stream:
+        # 提取图片（支持模糊查询）
+        end_time = time.time()
+        print(f"程序提取图像：{end_time - start_time:.2f}秒")
+    else:
+        print("未找到匹配的图片")
+    end_time = time.time()
+    print(f"程序加载工具：{end_time - start_time:.2f}秒")
+    start_time = time.time()
+    byte_stream = tool.query_image("1739516688")
     if byte_stream:
         # 提取图片（支持模糊查询）
         end_time = time.time()
