@@ -302,7 +302,7 @@ class ImageVideoTool:
         else:
             raise ValueError("sort_by must be 'name', 'time' or 'custom'")
         
-        # 重命名图片文件
+        # 3. 重命名图片文件
         renamed_images = []
         for idx, img in enumerate(images):
             old_path = os.path.join(self.image_folder, img)
@@ -310,9 +310,16 @@ class ImageVideoTool:
             new_path = os.path.join(self.image_folder, new_filename)
             os.rename(old_path, new_path)
             renamed_images.append(new_filename)
-        
 
-        # 3. 生成视频
+        # 4. 生成映射表（含时间戳和元数据）<button class="citation-flag" data-index="6"><button class="citation-flag" data-index="10">
+        with open(self.mapping_file, 'w', newline='') as f:
+            writer = csv.writer(f)
+            writer.writerow(["filename", "timestamp", "frame_number"])
+            for idx, img in enumerate(images):
+                timestamp = timedelta(seconds=idx/self.framerate)
+                writer.writerow([img, str(timestamp), idx+1])        
+
+        # 5. 生成视频
         command = [
             "ffmpeg",
             "-framerate", f"{self.framerate}",          # 输入帧率
@@ -335,17 +342,10 @@ class ImageVideoTool:
             logger.warning("FFmpeg Error:", e.stderr.decode())
             raise
         
-        # 删除重命名后的图片
+        # 6. 删除重命名后的图片
         for img in renamed_images:
             os.remove(os.path.join(self.image_folder, img))
 
-        # 4. 生成映射表（含时间戳和元数据）<button class="citation-flag" data-index="6"><button class="citation-flag" data-index="10">
-        with open(self.mapping_file, 'w', newline='') as f:
-            writer = csv.writer(f)
-            writer.writerow(["filename", "timestamp", "frame_number"])
-            for idx, img in enumerate(images):
-                timestamp = timedelta(seconds=idx/self.framerate)
-                writer.writerow([img, str(timestamp), idx+1])
         logger.info(f"Video created: {self.output_video}, mapping saved to {self.mapping_file}")
 
     def query_image(self, target_image: str):
