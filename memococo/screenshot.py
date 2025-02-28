@@ -12,10 +12,12 @@ import subprocess
 from memococo.ocr import extract_text_from_image
 import pyautogui
 import psutil
+import io
 from memococo.utils import (
     get_active_app_name,
     get_active_window_title,
     is_user_active,
+    ImageVideoTool
 )
 
 def get_screenshot_path(date):
@@ -158,8 +160,16 @@ def record_screenshots_thread(ignored_apps, ignored_apps_updated, save_power = T
                     logger.info(f"Processing entry: {entry}")
                     # 将entry.timestamp转换为datetime对象
                     screenshot_path = get_screenshot_path(datetime.datetime.fromtimestamp(entry.timestamp))
-                    image_path = os.path.join(screenshot_path, f"{entry.timestamp}.webp")
-                    image = Image.open(image_path)
+                    tool = ImageVideoTool(screenshot_path)
+                    if tool.is_backed_up():
+                        logger.info("images have been backed up")
+                        image_stream = tool.query_image(str(entry.timestamp))
+                        # 使用 PIL 的 Image 类将字节流读取为图像对象
+                        image = Image.open(image_stream)
+                    else:
+                        logger.info("images have not been backed up")
+                        image_path = os.path.join(screenshot_path, f"{entry.timestamp}.webp")
+                        image = Image.open(image_path)
                     # 将图片转为nparray
                     image = np.array(image)
                     ocr_json_text = extract_text_from_image(image)
