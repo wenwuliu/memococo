@@ -186,7 +186,7 @@ def record_screenshots_thread(ignored_apps, ignored_apps_updated, save_power = T
                                 if os.path.getsize(image_path) <= 200 * 1024:
                                     break
                                 compress_img_PIL(image_path)
-                        update_entry_text(entry.id, ocr_text, ocr_json_text)
+                        update_entry_text(entry.id, ocr_text, "")
                         logger.info("ocr task finished")
                     else:
                         logger.info("Image is None")
@@ -278,6 +278,6 @@ def record_screenshots_thread(ignored_apps, ignored_apps_updated, save_power = T
                     # 分割text，按行分割
                     text += item[1] + ' '
             insert_entry(
-                json_text, timestamp, text, active_app_name, active_window_title
+                "", timestamp, text, active_app_name, active_window_title
             )
 

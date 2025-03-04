@@ -40,7 +40,7 @@ def get_ocr_text(timestamp: int) -> str:
     with get_db_connection() as conn:
         c = conn.cursor()
         result = c.execute(
-            "SELECT jsontext FROM entries WHERE timestamp = ?", (timestamp,)
+            "SELECT text FROM entries WHERE timestamp = ?", (timestamp,)
         ).fetchone()
         return result[0] if result else ""
 
