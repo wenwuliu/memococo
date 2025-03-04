@@ -1,9 +1,6 @@
 from threading import Thread
 from flask import Flask, request, send_from_directory,redirect, url_for,render_template,flash,send_file,Response
 import os
-import cv2
-import io
-from expiringdict import ExpiringDict
 import json,jsonify
 import datetime
 from memococo.config import appdata_folder, screenshots_path, app_name_cn, app_version,get_settings,save_settings,ignored_apps,ignored_apps_updated,logger

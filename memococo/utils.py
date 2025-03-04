@@ -376,7 +376,7 @@ class ImageVideoTool:
             logger.warning(f"No match found for: {target_image}")
             return None
         if len(matches) > 1:
-            logger.warning(f"Multiple matches found: {matches}. Using first match.")        
+            logger.warning(f"Multiple matches found: {matches}. Using first match.")
         target = matches[0]
         
         # 3. 提取帧（使用OpenCV优化效率）<button class="citation-flag" data-index="5"><button class="citation-flag" data-index="6">

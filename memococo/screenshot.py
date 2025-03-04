@@ -129,7 +129,7 @@ def power_saving_mode(save_power):
     return False
     
 
-def record_screenshots_thread(ignored_apps, ignored_apps_updated, save_power = True,idle_time = 5,enable_compress = False):
+def record_screenshots_thread(ignored_apps, ignored_apps_updated, save_power = True,idle_time = 2,enable_compress = False):
     os.environ["TOKENIZERS_PARALLELISM"] = "false"
     dirDate = datetime.datetime.now()
     create_directory_if_not_exists(get_screenshot_path(dirDate))
@@ -138,7 +138,7 @@ def record_screenshots_thread(ignored_apps, ignored_apps_updated, save_power = T
     user_inactive_logged = False  # 添加标志位记录上一次用户是否处于非活动状态
     last_user_active_time = datetime.datetime.now()  # 添加变量记录上一次用户活动时间
     default_idle_time = idle_time
-    # 间隔时间为5秒
+    # 间隔时间为2秒
     while True:
         time.sleep(idle_time)
         if ignored_apps_updated.is_set():
@@ -154,7 +154,6 @@ def record_screenshots_thread(ignored_apps, ignored_apps_updated, save_power = T
                 # 如果处于省电模式，则跳过OCR任务
                 if power_saving_mode(save_power):
                     continue
-                logger.info("User has been inactive for more than 30 seconds, starting OCR task...")
                 entry = get_newest_empty_text()
                 if entry:
                     logger.info(f"Processing entry: {entry}")
@@ -192,9 +191,6 @@ def record_screenshots_thread(ignored_apps, ignored_apps_updated, save_power = T
                     else:
                         logger.info("Image is None")
                         remove_entry(entry.id)
-                else:
-                    #没有ocr任务
-                    logger.info("No OCR task..")
             continue
         else:
             user_inactive_logged = False
@@ -216,15 +212,11 @@ def record_screenshots_thread(ignored_apps, ignored_apps_updated, save_power = T
             
 
         #如果active_app_name 在ignored_apps中，则不插入数据库
-        logger.info(f"Active app name: {active_app_name}")
-        logger.info(f"Active window title: {active_window_title}")
         if active_app_name in ignored_apps:
-            logger.info(f"{active_app_name} is in ignored_apps, skipped...")
             continue
         
         #如果window title是appName，则不插入数据库
         if active_window_title == app_name_cn or active_window_title == app_name_en:
-            logger.info(f"{active_window_title} is in ignored_apps, skipped...")
             continue
         
         screenshots = take_screenshots()
@@ -244,13 +236,13 @@ def record_screenshots_thread(ignored_apps, ignored_apps_updated, save_power = T
             image_path = os.path.join(get_screenshot_path(dirDate), f"{timestamp}.webp")
             image.save(image_path,format="webp",lossless=True)
             # 如果系统cpu占用过高，则不进行ocr
-            cpu_usage = psutil.cpu_percent(interval=1)
-            cpu_temperature = get_cpu_temperature()
-            logger.info(f"cpu占用：{cpu_usage}%，当前温度：{cpu_temperature}°C")
-            if cpu_usage > 80 or cpu_temperature > 70:
-                logger.info(f"CPU占用过高，不进行ocr，当前cpu占用：{cpu_usage}%，当前温度：{cpu_temperature}°C")
-                json_text = ""
-            elif power_saving_mode(save_power):
+            # cpu_usage = psutil.cpu_percent(interval=1)
+            # cpu_temperature = get_cpu_temperature()
+            # logger.info(f"cpu占用：{cpu_usage}%，当前温度：{cpu_temperature}°C")
+            # if cpu_usage > 80 or cpu_temperature > 70:
+            #     logger.info(f"CPU占用过高，不进行ocr，当前cpu占用：{cpu_usage}%，当前温度：{cpu_temperature}°C")
+            #     json_text = ""
+            if power_saving_mode(save_power):
                 logger.info(f"省电模式开启，不进行ocr")
                 json_text = ""
             else:
