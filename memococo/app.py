@@ -7,7 +7,7 @@ from memococo.config import appdata_folder, screenshots_path, app_name_cn, app_v
 from memococo.database import create_db, get_all_entries, get_timestamps, get_unique_apps,get_ocr_text
 from memococo.ollama import query_ollama
 from memococo.screenshot import record_screenshots_thread
-from memococo.utils import human_readable_time, timestamp_to_human_readable,ImageVideoTool,get_folder_paths
+from memococo.utils import human_readable_time, timestamp_to_human_readable,ImageVideoTool,get_folder_paths,count_unique_keywords
 from memococo.app_map import get_app_names_by_app_codes,get_app_code_by_app_name
 import time
 
@@ -94,9 +94,13 @@ def search():
             text = getattr(entry, 'text', '') or ''
             # 如果任何一个关键词在text中，any()函数将返回True
             if any(keyword in text for keyword in keywords):
-                # 将entry的text字段中出现keywords的次数,同一个keyword多次出现算多次,统计到数组entries_count中
-                count = sum(text.count(keyword) for keyword in keywords)
-                sorted_entries.append({"entry": entry, "count": count})
+                #将entry的text字段中出现keywords的次数,同一个keyword仅统计一次,统计到数组entries_unique_count中
+                unique_count = count_unique_keywords(text,keywords)
+                if unique_count > 0:
+                    # 将entry的text字段中出现keywords的次数,同一个keyword多次出现算多次,统计到数组entries_count中
+                    unique_count = unique_count*100000
+                    count = sum(text.count(keyword) for keyword in keywords) + unique_count
+                    sorted_entries.append({"entry": entry, "count": count})
         #如果app不为空，则筛选app字段等于app的条目
         search_apps = get_app_names_by_app_codes(list(set([entry["entry"].app for entry in sorted_entries])))
         if app_code:
