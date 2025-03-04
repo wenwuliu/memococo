@@ -129,7 +129,7 @@ def power_saving_mode(save_power):
     return False
     
 
-def record_screenshots_thread(ignored_apps, ignored_apps_updated, save_power = True,idle_time = 2,enable_compress = False):
+def record_screenshots_thread(ignored_apps, ignored_apps_updated, save_power = True,idle_time = 4,enable_compress = False):
     os.environ["TOKENIZERS_PARALLELISM"] = "false"
     dirDate = datetime.datetime.now()
     create_directory_if_not_exists(get_screenshot_path(dirDate))
@@ -138,7 +138,7 @@ def record_screenshots_thread(ignored_apps, ignored_apps_updated, save_power = T
     user_inactive_logged = False  # 添加标志位记录上一次用户是否处于非活动状态
     last_user_active_time = datetime.datetime.now()  # 添加变量记录上一次用户活动时间
     default_idle_time = idle_time
-    # 间隔时间为2秒
+    # 间隔时间为4秒
     while True:
         time.sleep(idle_time)
         if ignored_apps_updated.is_set():
