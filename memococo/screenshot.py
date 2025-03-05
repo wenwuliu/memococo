@@ -122,10 +122,7 @@ def get_cpu_temperature():
 def power_saving_mode(save_power):
     if save_power:
         battery = psutil.sensors_battery()
-        if battery.power_plugged == False:
-            logger.info(f"battery percentage: {battery.percent}")
-        if battery.percent < 70 and battery.power_plugged == False:
-            logger.info(f"Power saving mode activated, battery percentage: {battery.percent}")
+        if battery.percent < 75 and battery.power_plugged == False:
             return True
     return False
     
