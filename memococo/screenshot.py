@@ -101,6 +101,7 @@ def compress_img_PIL(img_path, compress_rate=0.9, show=False):
         img = Image.open(img_path)
         w, h = img.size
         img_resize = img.resize((int(w*compress_rate), int(h*compress_rate)))
+        logger.info("compressing image")
         img_resize.save(img_path)
         # 保存到img_path
         if show:
@@ -236,13 +237,13 @@ def record_screenshots_thread(ignored_apps, ignored_apps_updated, save_power = T
             image_path = os.path.join(get_screenshot_path(dirDate), f"{timestamp}.webp")
             image.save(image_path,format="webp",lossless=True)
             # 如果系统cpu占用过高，则不进行ocr
-            # cpu_usage = psutil.cpu_percent(interval=1)
-            # cpu_temperature = get_cpu_temperature()
-            # logger.info(f"cpu占用：{cpu_usage}%，当前温度：{cpu_temperature}°C")
-            # if cpu_usage > 80 or cpu_temperature > 70:
-            #     logger.info(f"CPU占用过高，不进行ocr，当前cpu占用：{cpu_usage}%，当前温度：{cpu_temperature}°C")
-            #     json_text = ""
-            if power_saving_mode(save_power):
+            cpu_usage = psutil.cpu_percent(interval=1)
+            cpu_temperature = get_cpu_temperature()
+            logger.info(f"cpu占用：{cpu_usage}%，当前温度：{cpu_temperature}°C")
+            if cpu_usage > 70 or cpu_temperature > 70:
+                logger.info(f"CPU占用过高，不进行ocr，当前cpu占用：{cpu_usage}%，当前温度：{cpu_temperature}°C")
+                json_text = ""
+            elif power_saving_mode(save_power):
                 logger.info(f"省电模式开启，不进行ocr")
                 json_text = ""
             else:

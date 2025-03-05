@@ -214,7 +214,7 @@ if __name__ == "__main__":
     logger.info(f"Appdata folder: {appdata_folder}")
 
     # Start the thread to record screenshots
-    t = Thread(target=record_screenshots_thread,args=(ignored_apps, ignored_apps_updated))
+    t = Thread(target=record_screenshots_thread,args=(ignored_apps, ignored_apps_updated,True,3,True))
     t.start()
 
     app.run(port=8082)
