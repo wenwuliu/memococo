@@ -128,7 +128,6 @@ def power_saving_mode(save_power):
     
 
 def record_screenshots_thread(ignored_apps, ignored_apps_updated, save_power = True,idle_time = 4,enable_compress = False):
-    os.environ["TOKENIZERS_PARALLELISM"] = "false"
     dirDate = datetime.datetime.now()
     create_directory_if_not_exists(get_screenshot_path(dirDate))
     logger.info("Started recording screenshots...")
