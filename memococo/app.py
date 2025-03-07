@@ -90,7 +90,7 @@ def search():
     else:
         keywords = query_ollama(q,model= get_settings()["model"])
         #将keywords从json字符串转为list
-        keywords = json.loads(keywords) if keywords else [q]
+        keywords = json.loads(keywords) if keywords else q.split()
         sorted_entries = []
 
         # 遍历entries列表中的每个条目
