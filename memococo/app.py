@@ -52,6 +52,11 @@ def generate_time_nodes(current_timestamps):
 def load_data():
   global unique_apps
   unique_apps = get_app_names_by_app_codes(get_unique_apps())
+  
+@app.route('/favicon.ico')
+def favicon():
+    return send_from_directory(os.path.join(app.root_path, 'static'),
+                               'favicon.ico', mimetype='image/vnd.microsoft.icon')
 
 @app.route("/")
 def timeline():
