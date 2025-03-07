@@ -12,7 +12,6 @@ import subprocess
 from memococo.ocr import extract_text_from_image
 import pyautogui
 import psutil
-import io
 from memococo.utils import (
     get_active_app_name,
     get_active_window_title,

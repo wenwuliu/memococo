@@ -8,7 +8,6 @@ from datetime import timedelta
 import datetime
 from typing import List, Optional
 import io
-import time
 
 XDOTOOL = "xdotool"
 XPROP = "xprop"

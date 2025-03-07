@@ -1,4 +1,3 @@
-import io
 import platform
 from pathlib import Path
 from setuptools import find_packages, setup
@@ -15,7 +14,8 @@ install_requires = [
     "toml>=0.10.2",
     "pyautogui>=0.9.54",
     "ffmpeg-python>=0.2.0",
-    "expiringdict>=1.2.2"
+    "expiringdict>=1.2.2",
+    "easyocr>=1.7.2",
 ]
 
 # 操作系统特定依赖
