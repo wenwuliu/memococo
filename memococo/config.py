@@ -2,12 +2,11 @@ import os
 import sys
 import argparse
 import toml
-from multiprocessing import Manager,Event
 
 app_name_cn = "时光胶囊"
 app_name_en = "MemoCoco"
 main_app_name = app_name_en
-app_version = "2.1.29"
+app_version = "2.1.30"
 
 parser = argparse.ArgumentParser(description=main_app_name)
 
@@ -88,9 +87,6 @@ default_ignored_apps = [
     "DBeaver",
     "code"
 ]
-
-ignored_apps = Manager().list(get_settings()["ignored_apps"])
-ignored_apps_updated = Event()
 
 
 #数据库以app_name_en.db命名

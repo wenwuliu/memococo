@@ -6,7 +6,7 @@ import numpy as np
 import json
 from PIL import Image
 import datetime
-from memococo.config import screenshots_path, args,app_name_en,app_name_cn,logger
+from memococo.config import screenshots_path, args,app_name_en,app_name_cn,logger,get_settings
 from memococo.database import insert_entry,get_newest_empty_text,update_entry_text,remove_entry
 import subprocess
 from memococo.ocr import extract_text_from_image
@@ -167,15 +167,9 @@ def record_screenshots_thread(ignored_apps, ignored_apps_updated, save_power = T
                         image = Image.open(image_path)
                     # 将图片转为nparray
                     image = np.array(image)
-                    ocr_json_text = extract_text_from_image(image)
+                    ocr_text = extract_text_from_image(image,ocr_engine = get_settings()['ocr_tool'])
                     # 如果ocr_json_text为[]，则ocr_text为空字符串
-                    if ocr_json_text == '[]':
-                        ocr_json_text = ''
-                    ocr_text = ''
-                    if image is not None and ocr_json_text:
-                        for item in json.loads(ocr_json_text):
-                            # 分割text，按行分割
-                            ocr_text += item[1] + ' '
+                    if image is not None and ocr_text:
                         if enable_compress:
                             while True:
                                 # print(f"File size: {os.path.getsize(image_path) / 1024} KB, File name: {image_path}")
@@ -235,18 +229,18 @@ def record_screenshots_thread(ignored_apps, ignored_apps_updated, save_power = T
             cpu_usage = psutil.cpu_percent(interval=1)
             cpu_temperature = get_cpu_temperature()
             logger.info(f"cpu占用：{cpu_usage}%，当前温度：{cpu_temperature}°C")
-            if cpu_usage > 70 or cpu_temperature > 70:
+            if cpu_usage > 70 or ( cpu_temperature is not None and cpu_temperature > 70 ):
                 logger.info(f"CPU占用过高，不进行ocr，当前cpu占用：{cpu_usage}%，当前温度：{cpu_temperature}°C")
-                json_text = ""
+                text = ""
             elif power_saving_mode(save_power):
                 logger.info(f"省电模式开启，不进行ocr")
-                json_text = ""
+                text = ""
             else:
                 if window_shot is not None:
-                    json_text = extract_text_from_image(window_shot)
+                    text = extract_text_from_image(window_shot,ocr_engine = get_settings()['ocr_tool'])
                     logger.info("window_shot ocr识别完成")
                 else:
-                    json_text = extract_text_from_image(screenshot)
+                    text = extract_text_from_image(screenshot,ocr_engine = get_settings()['ocr_tool'])
                     logger.info("screenshot ocr识别完成")
             
             # 如果当前的年月日和dirDate不同，则创建新的目录
@@ -254,7 +248,7 @@ def record_screenshots_thread(ignored_apps, ignored_apps_updated, save_power = T
                 dirDate = datetime.datetime.now()
                 create_directory_if_not_exists(get_screenshot_path(dirDate))
             # 如果json_text为空，则暂不压缩图片，直接保存
-            if json_text:
+            if text:
                 if enable_compress:
                     # 逐步降低图像的质量，直到图像的大小小于200k
                     while True:
@@ -268,11 +262,6 @@ def record_screenshots_thread(ignored_apps, ignored_apps_updated, save_power = T
             endTime = time.time()
             #耗时计算时，保留小数点后两位
             logger.info(f"截图保存完成，耗时：{endTime - startTime:.2f}秒")
-            text = ''
-            if json_text:
-                for item in json.loads(json_text):
-                    # 分割text，按行分割
-                    text += item[1] + ' '
             insert_entry(
                 "", timestamp, text, active_app_name, active_window_title
             )

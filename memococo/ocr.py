@@ -3,15 +3,24 @@ import base64
 from memococo.config import logger
 import json
 import cv2
+import os
 
 
 def extract_text_from_image(image,ocr_engine='trwebocr'):
     if ocr_engine == 'easy_ocr':
         return easy_ocr(image)
     elif ocr_engine == 'tesseract':
-        return tesseract_ocr(image)
+        result = tesseract_ocr(image)
+        text = ""
+        for item in json.loads(result):
+            text += item[1]
+        return text
     elif ocr_engine == 'trwebocr':
-        return trwebocr(image)
+        response = trwebocr(image)
+        text = ""
+        for item in json.loads(response):
+            text += item[1]
+        return text
     else:
         logger.error(f'Invalid OCR engine: {ocr_engine}')
         return None
@@ -63,38 +72,23 @@ def trwebocr(image):
 def image_preprocessing(image):
     # 图像灰度化
     gray_image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-    return gray_image    
-    # #图像二值化
-    # _, binary_image = cv2.threshold(image, 128, 255, cv2.THRESH_BINARY_INV)
-    
-    # # 返回二值化后的图像
-    # return binary_image
-
-def easy_ocr_default(obj):
-    result = []
-    for item in obj:
-        result.append([item[0], item[1], item[2]])
-    return result
+    return gray_image
     
 def easy_ocr(image):
+    image = image_preprocessing(image)
     import easyocr
-    reader = easyocr.Reader(['ch_sim','en'],gpu=True)
-    result = reader.readtext(image)
-    result_format_json = []
-    for item in result:
-        x1, y1 = item[0][0]
-        x2, y2 = item[0][1]
-        x3, y3 = item[0][2]
-        x4, y4 = item[0][3]
-        w = x4 - x1
-        h = y4 - y1
-        result_format_json.append([[x1, y1, w, h, 0], item[1], item[2]])
-    # todo:change result_json to text
-    result_json = json.dumps(result_format_json, ensure_ascii=False,default=easy_ocr_default)
-    return result_json
+    # 拼接路径 static/easyocr/model
+    model_path = os.path.join(os.path.dirname(__file__), 'static','easyocr','model')
+    reader = easyocr.Reader(['ch_sim','en'],gpu=True,model_storage_directory = model_path)
+    result = reader.readtext(image,detail=0)
+    # 将result字符串数组转为字符串，按空格分隔
+    result = " ".join(result)
+    return result
 
 # main方法测试
 if __name__ == "__main__":
+    import time
+    start_time = time.time()
     screenshots = []
     import mss
     import numpy as np
@@ -105,11 +99,8 @@ if __name__ == "__main__":
             screenshot = np.array(sct.grab(monitor_))
             screenshot = screenshot[:, :, [2, 1, 0]]
             screenshots.append(screenshot)
-    for image in screenshots:
-        response = extract_text_from_image(image,ocr_engine='easy_ocr')
+        response = extract_text_from_image(screenshots[0],ocr_engine='tesseract')
+        end_time = time.time()
         logger.info(response)
+        logger.info(f"耗时：{end_time - start_time}")
         #将json数组中所有的第二个元素抽取出来，并拼接成字符串
-        text = ""
-        for item in json.loads(response):
-            text += item[1]
-        logger.info(text)

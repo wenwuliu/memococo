@@ -16,6 +16,9 @@ install_requires = [
     "ffmpeg-python>=0.2.0",
     "expiringdict>=1.2.2",
     "easyocr>=1.7.2",
+    "requests>=2.32.3",
+    "jsonify>=0.5"
+    "pytesseract>=0.3.13"
 ]
 
 # 操作系统特定依赖
@@ -32,7 +35,7 @@ if current_os in OS_DEPENDENCIES:
 
 setup(
     name="MemoCoco",
-    version="2.1.29",
+    version="2.1.30",
     description="MemoCoco - 时间胶囊",
     long_description=long_description,
     long_description_content_type="text/markdown",

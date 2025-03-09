@@ -1,10 +1,11 @@
 from threading import Thread
-from flask import Flask, request, send_from_directory,redirect, url_for,render_template,flash,send_file,Response
+from flask import Flask, request, send_from_directory,redirect, url_for,render_template,flash,Response
 import sys
 import os
 import json,jsonify
 import datetime
-from memococo.config import appdata_folder, screenshots_path, app_name_cn, app_version,get_settings,save_settings,ignored_apps,ignored_apps_updated,logger
+from multiprocessing import Manager,Event
+from memococo.config import appdata_folder, screenshots_path, app_name_cn, app_version,get_settings,save_settings,logger
 from memococo.database import create_db, get_all_entries, get_timestamps, get_unique_apps,get_ocr_text
 from memococo.ollama import query_ollama
 from memococo.screenshot import record_screenshots_thread
@@ -230,6 +231,8 @@ if __name__ == "__main__":
         logger.error("Port 8082 is already in use. Please close the program that is using this port and try again.")
         sys.exit(1)
 
+    ignored_apps = Manager().list(get_settings()["ignored_apps"])
+    ignored_apps_updated = Event()
     # Start the thread to record screenshots
     t = Thread(target=record_screenshots_thread,args=(ignored_apps, ignored_apps_updated,True,3,True))
     t.start()
