@@ -1,5 +1,6 @@
 from threading import Thread
 from flask import Flask, request, send_from_directory,redirect, url_for,render_template,flash,send_file,Response
+import sys
 import os
 import json,jsonify
 import datetime
@@ -7,7 +8,7 @@ from memococo.config import appdata_folder, screenshots_path, app_name_cn, app_v
 from memococo.database import create_db, get_all_entries, get_timestamps, get_unique_apps,get_ocr_text
 from memococo.ollama import query_ollama
 from memococo.screenshot import record_screenshots_thread
-from memococo.utils import human_readable_time, timestamp_to_human_readable,ImageVideoTool,get_folder_paths,count_unique_keywords
+from memococo.utils import human_readable_time, timestamp_to_human_readable,ImageVideoTool,get_folder_paths,count_unique_keywords,check_port
 from memococo.app_map import get_app_names_by_app_codes,get_app_code_by_app_name
 import time
 
@@ -88,7 +89,10 @@ def search():
         search_apps = [app]
         keywords = []
     else:
-        keywords = query_ollama(q,model= get_settings()["model"])
+        keywords = []
+        logger.info(f"use ollama: {get_settings()['use_ollama']}")
+        if get_settings()["use_ollama"] == "True":
+            keywords = query_ollama(q,model= get_settings()["model"])
         #将keywords从json字符串转为list
         keywords = json.loads(keywords) if keywords else q.split()
         sorted_entries = []
@@ -128,6 +132,7 @@ def settings():
         # 获取表单数据
         model = request.form.get("model")
         ocr_tool = request.form.get("ocr_tool")
+        use_ollama = request.form.get("use_ollama")
         local_ignored_apps = request.form.getlist("ignored_apps")
         # local_ignored_apps需要转为list,将local_ignored_apps[0]转为list，每个元素以,分割
         local_ignored_apps = local_ignored_apps[0].split(",") if local_ignored_apps else []
@@ -138,7 +143,7 @@ def settings():
         # 保存设置
         save_settings({
                 "ocr_tool": ocr_tool,
-                "model_plateform":"ollama",
+                "use_ollama": use_ollama,
                 "model": model,
                 "ignored_apps": local_ignored_apps,
             })
@@ -217,6 +222,13 @@ if __name__ == "__main__":
     logger.info(f"app version: {app_version}")
 
     logger.info(f"Appdata folder: {appdata_folder}")
+    
+    logger.info(f"check port: {check_port(8082)}")
+    
+    #如果8082端口被占用，则提示并退出
+    if check_port(8082):
+        logger.error("Port 8082 is already in use. Please close the program that is using this port and try again.")
+        sys.exit(1)
 
     # Start the thread to record screenshots
     t = Thread(target=record_screenshots_thread,args=(ignored_apps, ignored_apps_updated,True,3,True))

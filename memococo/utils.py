@@ -22,6 +22,11 @@ HID_IDLE_TIME = "HIDIdleTime"
 XPRINTIDLE = "xprintidle"
 RECORD_NAME = "record.mp4"
 
+def check_port(port):
+    import socket
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        return s.connect_ex(('localhost', port)) == 0
+
 def count_unique_keywords(text, keywords):
     # 将 keywords 转换为集合以去重（防止输入中有重复关键词）
     keyword_set = set(keywords)

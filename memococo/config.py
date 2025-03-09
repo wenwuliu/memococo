@@ -7,7 +7,7 @@ from multiprocessing import Manager,Event
 app_name_cn = "时光胶囊"
 app_name_en = "MemoCoco"
 main_app_name = app_name_en
-app_version = "2.1.28"
+app_version = "2.1.29"
 
 parser = argparse.ArgumentParser(description=main_app_name)
 
@@ -70,7 +70,7 @@ def get_settings():
         config_path = os.path.join(appdata_folder, "config.toml")
         config = {
             "ocr_tool": "trwebocr",
-            "model_plateform":"ollama",
+            "use_ollama":True,
             "model": "qwen2.5:3b",
             "ignored_apps": default_ignored_apps,
         }
