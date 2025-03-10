@@ -17,8 +17,8 @@ install_requires = [
     "expiringdict>=1.2.2",
     "easyocr>=1.7.2",
     "requests>=2.32.3",
-    "jsonify>=0.5"
-    "pytesseract>=0.3.13"
+    "jsonify>=0.5",
+    "pytesseract>=0.3.13",
 ]
 
 # 操作系统特定依赖
