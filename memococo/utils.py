@@ -295,7 +295,8 @@ class ImageVideoTool:
 
     def images_to_video(self, 
                         sort_by: str = "name", 
-                        image_extensions: List[str] = [".jpg", ".jpeg", ".png",".webp"]):
+                        image_extensions: List[str] = [".jpg", ".jpeg", ".png",".webp"],
+                        ):
         """
         将文件夹内所有图片转为视频（支持多格式、智能排序）
         :param image_folder: 图片文件夹路径
@@ -348,7 +349,7 @@ class ImageVideoTool:
             "-i", self.image_folder + "/%03d.webp",         # 输入文件名模式
             "-c:v", "h264",           # 视频编码器
             "-crf", f"{self.crf}",            # CRF值（视频质量）
-            "-preset", "veryslow",       # 编码速度（慢=高质量）
+            "-preset", "medium",       # 编码速度（慢=高质量）
             "-y", self.output_video
         ]
 
@@ -417,20 +418,18 @@ class ImageVideoTool:
         
 if __name__ == "__main__":
     
-    text = "这是一个超大的字符串示例，包含一些关键词如apple、banana、cherry和date。"
-    keywords = ["app22le", "b33anana", "ch33erry", "d22ate", "egg11"]
-    result = count_unique_keywords(text, keywords)
-    print(f"不重复出现的关键词数量: {result}")
-    # folder = get_folder_paths("/home/liuwenwu/.local/share/MemoCoco/screenshots",0,30)
-    # print(folder)
-    # import time
-    # start_time = time.time()
-    # tool = ImageVideoTool("/home/liuwenwu/.local/share/MemoCoco/screenshots/2025/02/14")
-    # # # 转换图片（按文件名排序）
-    # # tool.images_to_video( sort_by="time")
-    # # time.sleep(1)
-    # end_time = time.time()
-    # print(f"程序加载工具：{end_time - start_time:.2f}秒")
+    # text = "这是一个超大的字符串示例，包含一些关键词如apple、banana、cherry和date。"
+    # keywords = ["app22le", "b33anana", "ch33erry", "d22ate", "egg11"]
+    # result = count_unique_keywords(text, keywords)
+    # print(f"不重复出现的关键词数量: {result}")
+    import time
+    start_time = time.time()
+    tool = ImageVideoTool("/home/liuwenwu/.local/share/MemoCoco/screenshots/2025/03/10")
+    # # 转换图片（按文件名排序）
+    tool.images_to_video( sort_by="time")
+    # time.sleep(1)
+    end_time = time.time()
+    print(f"程序加载工具：{end_time - start_time:.2f}秒")
     # start_time = time.time()
     # byte_stream = tool.query_image("1739516282")
     # if byte_stream:
