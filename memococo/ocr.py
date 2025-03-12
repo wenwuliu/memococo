@@ -7,23 +7,29 @@ import os
 
 
 def extract_text_from_image(image,ocr_engine='trwebocr'):
-    if ocr_engine == 'easy_ocr':
-        return easy_ocr(image)
-    elif ocr_engine == 'tesseract':
-        result = tesseract_ocr(image)
-        text = ""
-        for item in json.loads(result):
-            text += item[1]
-        return text
-    elif ocr_engine == 'trwebocr':
-        response = trwebocr(image)
-        text = ""
-        for item in json.loads(response):
-            text += item[1]
-        return text
-    else:
-        logger.error(f'Invalid OCR engine: {ocr_engine}')
-        return None
+    try:
+        if ocr_engine == 'easy_ocr':
+            return easy_ocr(image)
+        elif ocr_engine == 'tesseract':
+            result = tesseract_ocr(image)
+            text = ""
+            for item in json.loads(result):
+                text += item[1]
+            return text
+        elif ocr_engine == 'trwebocr':
+            response = trwebocr(image)
+            if response is None:
+                return ""
+            text = ""
+            for item in json.loads(response):
+                text += item[1]
+            return text
+        else:
+            logger.error(f'Invalid OCR engine: {ocr_engine}')
+            return None
+    except Exception as e:
+        logger.error(f'Error extracting text from image: {e}')
+        return ""
 
 def tesseract_ocr(image):
     import pytesseract
@@ -53,7 +59,9 @@ def trwebocr(image):
     _, buffer = cv2.imencode('.png', image)
     encoded_string = base64.b64encode(buffer).decode('utf-8')
     try:
+        logger.info("正在请求trwebocr")
         result = requests.post(url, data={"img": encoded_string,'compress':0})
+        logger.info("请求trwebocr完成")
         # result = requests.post(url, data={"img": encoded_string})
         result.raise_for_status()
         data = result.json()
@@ -79,7 +87,7 @@ def easy_ocr(image):
     import easyocr
     # 拼接路径 static/easyocr/model
     model_path = os.path.join(os.path.dirname(__file__), 'static','easyocr','model')
-    reader = easyocr.Reader(['ch_sim','en'],gpu=True,model_storage_directory = model_path)
+    reader = easyocr.Reader(['ch_sim','en'],gpu=True)
     result = reader.readtext(image,detail=0)
     # 将result字符串数组转为字符串，按空格分隔
     result = " ".join(result)

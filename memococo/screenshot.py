@@ -239,10 +239,12 @@ def record_screenshots_thread(ignored_apps, ignored_apps_updated, save_power = T
                 if window_shot is not None:
                     text = extract_text_from_image(window_shot,ocr_engine = get_settings()['ocr_tool'])
                     logger.info("window_shot ocr识别完成")
-                else:
+                elif screenshot is not None:
                     text = extract_text_from_image(screenshot,ocr_engine = get_settings()['ocr_tool'])
                     logger.info("screenshot ocr识别完成")
-            
+                else:
+                    text = ""
+                    logger.info("ocr识别失败，不存在截图")
             # 如果当前的年月日和dirDate不同，则创建新的目录
             if dirDate != datetime.datetime.now().date():
                 dirDate = datetime.datetime.now()
