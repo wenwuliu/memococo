@@ -92,6 +92,10 @@ def search():
         sorted_entries = [{"entry": entry, "count": 0} for entry in entries if entry.app == app_code]
         search_apps = [app]
         keywords = []
+        # sorted_entries按照entry的timestamp字段降序排列
+        sorted_entries.sort(key=lambda x: x["entry"].timestamp, reverse=True)
+        # 保留最多50条
+        # sorted_entries = sorted_entries[:50]
     else:
         keywords = []
         logger.info(f"use ollama: {get_settings()['use_ollama']}")
@@ -118,7 +122,7 @@ def search():
         if app_code:
             sorted_entries = [entry for entry in sorted_entries if entry["entry"].app == app_code]
         # 将sorted_entries按count字段降序排列
-        sorted_entries = sorted(sorted_entries, key=lambda x: x["count"], reverse=True)[:50]
+        sorted_entries = sorted(sorted_entries, key=lambda x: x["count"], reverse=True)
     return render_template(
         "search.html",
         entries=[entry["entry"] for entry in sorted_entries],
