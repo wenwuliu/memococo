@@ -196,6 +196,7 @@ def unbacked_up_folders():
     all_folders = get_folder_paths(screenshots_path, 0, 30)
     # 筛选出未备份的文件夹
     unbacked_up_folders = [folder for folder in all_folders if not ImageVideoTool(folder).is_backed_up()]
+    total_size = ImageVideoTool(appdata_folder).get_folder_size()
     # 按照文件夹名排序
     unbacked_up_folders.sort()
     folder_info = []
@@ -208,7 +209,7 @@ def unbacked_up_folders():
             "folder_size": tool.get_folder_size()
         })
     # 将未备份的文件夹传递给模板
-    return render_template("unbacked_up_folders.html", folders=folder_info)
+    return render_template("unbacked_up_folders.html", folders=folder_info,totalSize=total_size)
 
 def compress_folder_thread(folder):
     # 创建 ImageVideoTool 实例

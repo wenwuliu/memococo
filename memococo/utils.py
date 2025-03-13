@@ -297,8 +297,8 @@ class ImageVideoTool:
         return len(os.listdir(self.image_folder))
     
     def get_folder_size(self):
-        #统计image_folder文件夹内所有文件大小的总和，单位为MB
-        return str(round(sum(os.path.getsize(os.path.join(self.image_folder, f)) for f in os.listdir(self.image_folder)) / (1024 * 1024), 2)) + "MB"
+        #统计image_folder文件夹内所有文件大小的总和，单位为MB,使用du -sh命令
+        return subprocess.check_output(["du", "-sh", self.image_folder]).decode().split()[0]
 
     def images_to_video(self, 
                         sort_by: str = "name", 
