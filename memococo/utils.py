@@ -292,6 +292,13 @@ class ImageVideoTool:
         
     def is_backed_up(self):
         return os.path.exists(self.mapping_file)
+    
+    def get_image_count(self):
+        return len(os.listdir(self.image_folder))
+    
+    def get_folder_size(self):
+        #统计image_folder文件夹内所有文件大小的总和，单位为MB
+        return str(round(sum(os.path.getsize(os.path.join(self.image_folder, f)) for f in os.listdir(self.image_folder)) / (1024 * 1024), 2)) + "MB"
 
     def images_to_video(self, 
                         sort_by: str = "name", 

@@ -66,6 +66,9 @@ def timeline():
     timestamps = get_timestamps()
     #todo 增加time_nodes,用于计算合适的时间节点，5分钟前，1小时前，3小时前，6小时前，12小时前，24小时前，3天前，7天前，30天前，90天前，180天前，1年前等。
     time_nodes = generate_time_nodes(timestamps)
+    # 使用多线程唤醒ollama服务
+    if get_settings()["use_ollama"] == "True":
+        Thread(target=query_ollama,args=("你好",get_settings()["model"])).start()
     return render_template("index.html",
         timestamps=timestamps,
         time_nodes = time_nodes,
@@ -97,7 +100,6 @@ def search():
         #将keywords从json字符串转为list
         keywords = json.loads(keywords) if keywords else q.split()
         sorted_entries = []
-
         # 遍历entries列表中的每个条目
         for entry in entries:
             # 获取条目的'text'属性，如果属性不存在，则返回空字符串
@@ -194,8 +196,19 @@ def unbacked_up_folders():
     all_folders = get_folder_paths(screenshots_path, 0, 30)
     # 筛选出未备份的文件夹
     unbacked_up_folders = [folder for folder in all_folders if not ImageVideoTool(folder).is_backed_up()]
+    # 按照文件夹名排序
+    unbacked_up_folders.sort()
+    folder_info = []
+    # 查询未备份文件夹的图片数量以及文件夹大小
+    for folder in unbacked_up_folders:
+        tool = ImageVideoTool(folder)
+        folder_info.append({
+            "folder": folder,
+            "image_count": tool.get_image_count(),
+            "folder_size": tool.get_folder_size()
+        })
     # 将未备份的文件夹传递给模板
-    return render_template("unbacked_up_folders.html", folders=unbacked_up_folders)
+    return render_template("unbacked_up_folders.html", folders=folder_info)
 
 def compress_folder_thread(folder):
     # 创建 ImageVideoTool 实例

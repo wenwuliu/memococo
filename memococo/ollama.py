@@ -1,7 +1,7 @@
 import requests
 from memococo.config import logger
 
-def query_ollama(question, base_url="http://127.0.0.1:11434", model="qwen2.5:3b"):
+def query_ollama(question, model="qwen2.5:3b", base_url="http://127.0.0.1:11434"):
     url = base_url + "/api/generate"
     #如果未运行ollama服务，则返回question，判断url是否可达，不可达则返回question
     try:
