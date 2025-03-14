@@ -6,7 +6,7 @@ import toml
 app_name_cn = "时光胶囊"
 app_name_en = "MemoCoco"
 main_app_name = app_name_en
-app_version = "2.1.34"
+app_version = "2.1.35"
 
 parser = argparse.ArgumentParser(description=main_app_name)
 
