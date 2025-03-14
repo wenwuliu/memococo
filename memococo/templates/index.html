@@ -41,9 +41,12 @@
             <div class="card rounded-lg">
                 <div class="card-body">
                     <div class="card-text">
+                      <div id="app-list">
                         {% for app in unique_apps %}
                             <a href="{{ url_for('search', q="", app=app) }}"><span class="badge badge-pill badge-primary">{{ app }}</span></a>
                         {% endfor %}
+                      </div>
+                      <button id="toggle-apps" class="btn btn-link">展开</button>
                     </div>
                 </div>
             </div>
@@ -213,6 +216,31 @@
           timestampImage.src = `/pictures/${timestamp}.webp`;
         }, 200);
     });
+
+    // 控制app列表的展开和折叠
+    document.getElementById('toggle-apps').addEventListener('click', function() {
+      const appList = document.getElementById('app-list');
+      const apps = appList.children;
+      const button = document.getElementById('toggle-apps');
+      if (button.textContent === '展开') {
+          for (let i = 0; i < apps.length; i++) {
+              apps[i].style.display = 'inline';
+          }
+          button.textContent = '折叠';
+      } else {
+          for (let i = 15; i < apps.length; i++) {
+              apps[i].style.display = 'none';
+          }
+          button.textContent = '展开';
+      }
+  });
+
+    // 默认隐藏15个之后的app
+    const appList = document.getElementById('app-list');
+    const apps = appList.children;
+    for (let i = 15; i < apps.length; i++) {
+        apps[i].style.display = 'none';
+    }
   </script>
 {% else %}
   <div class="container">
