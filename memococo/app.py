@@ -7,7 +7,7 @@ import datetime
 from multiprocessing import Manager,Event
 from memococo.config import appdata_folder, screenshots_path, app_name_cn, app_version,get_settings,save_settings,logger
 from memococo.database import create_db, get_all_entries, get_timestamps, get_unique_apps,get_ocr_text
-from memococo.ollama import query_ollama
+from memococo.ollama import extract_keywords_to_json,query_ollama
 from memococo.screenshot import record_screenshots_thread
 from memococo.utils import human_readable_time, timestamp_to_human_readable,ImageVideoTool,get_folder_paths,count_unique_keywords,check_port
 from memococo.app_map import get_app_names_by_app_codes,get_app_code_by_app_name
@@ -100,9 +100,9 @@ def search():
         keywords = []
         logger.info(f"use ollama: {get_settings()['use_ollama']}")
         if get_settings()["use_ollama"] == "True":
-            keywords = query_ollama(q,model= get_settings()["model"])
+            keywords = extract_keywords_to_json(q,model= get_settings()["model"])
         #将keywords从json字符串转为list
-        keywords = json.loads(keywords) if keywords else q.split()
+        keywords = keywords if keywords else q.split()
         sorted_entries = []
         # 遍历entries列表中的每个条目
         for entry in entries:
