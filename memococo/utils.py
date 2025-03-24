@@ -108,19 +108,81 @@ def get_active_window_title_osx():
     return ""
 
 
+# def get_active_app_name_windows():
+#     import psutil
+#     import win32gui
+#     import win32process
+
+#     try:
+#         hwnd = win32gui.GetForegroundWindow()
+#         _, pid = win32process.GetWindowThreadProcessId(hwnd)
+#         exe = psutil.Process(pid).name()
+#         return exe
+#     except Exception as e:
+#         logger.warning(f"Error getting active app name on Windows: {e}")
+#         return ""
+
 def get_active_app_name_windows():
     import psutil
     import win32gui
     import win32process
-
+    import win32api
+    import win32con
+    """
+    获取当前活动应用程序的友好名称。
+    
+    Returns:
+        str: 当前活动应用程序的友好名称（如 "Google Chrome"）。
+    """
     try:
+        # 获取当前活动窗口的句柄
         hwnd = win32gui.GetForegroundWindow()
+        
+        # 获取该窗口所属的进程 ID
         _, pid = win32process.GetWindowThreadProcessId(hwnd)
-        exe = psutil.Process(pid).name()
-        return exe
+        
+        # 根据进程 ID 获取对应的进程对象
+        process = psutil.Process(pid)
+        
+        # 获取可执行文件的路径
+        exe_path = process.exe()
+        # 从可执行文件路径提取友好名称
+        friendly_name = get_friendly_app_name(exe_path)
+        return friendly_name
+    
     except Exception as e:
-        logger.warning(f"Error getting active app name on Windows: {e}")
-        return ""
+        logger.info(f"发生错误: {e}")
+        return None
+
+
+def get_friendly_app_name(exe_path):
+    import psutil
+    import win32gui
+    import win32process
+    import win32api
+    import win32con
+    """
+    根据可执行文件路径获取应用程序的友好名称。
+    
+    Args:
+        exe_path (str): 可执行文件的完整路径。
+        
+    Returns:
+        str: 应用程序的友好名称。
+    """
+    try:
+        # 使用 Windows API 获取文件的版本信息
+        info = win32api.GetFileVersionInfo(exe_path, "\\")
+        # 提取内部名称（通常是应用程序的友好名称）
+        if "FileDescription" in info:
+            return info["FileDescription"]
+        
+        # 如果没有 FileDescription，则返回文件名
+        return os.path.basename(exe_path)
+    
+    except Exception:
+        # 如果无法获取版本信息，则返回文件名
+        return os.path.basename(exe_path)
 
 
 def get_active_window_title_windows():
@@ -210,6 +272,51 @@ def is_user_active_osx():
         # If there's any other error, assume the user is not idle
         return True
     
+
+def get_idle_time():
+    import ctypes
+    """
+    获取用户当前的空闲时间（以秒为单位）。
+    
+    Returns:
+        int: 用户空闲时间（秒）。
+    """
+    class LASTINPUTINFO(ctypes.Structure):
+        _fields_ = [("cbSize", ctypes.c_uint),
+                    ("dwTime", ctypes.c_ulong)]
+
+    # 初始化结构体
+    last_input_info = LASTINPUTINFO()
+    last_input_info.cbSize = ctypes.sizeof(LASTINPUTINFO)
+
+    # 调用 GetLastInputInfo 函数
+    if not ctypes.windll.user32.GetLastInputInfo(ctypes.byref(last_input_info)):
+        raise RuntimeError("无法获取用户最后一次输入信息。")
+
+    # 获取当前的系统运行时间 (ticks)
+    current_time = ctypes.windll.kernel32.GetTickCount()
+
+    # 计算空闲时间（毫秒）
+    idle_time_ms = current_time - last_input_info.dwTime
+
+    # 转换为秒
+    return idle_time_ms // 1000
+
+
+def is_user_active_windows(idle_threshold=5):
+    """
+    判断用户当前是否处于活跃状态。
+    
+    Args:
+        idle_threshold (int): 允许的最大空闲时间（秒）。默认为 5 秒。
+        
+    Returns:
+        bool: 如果用户活跃，返回 True；否则返回 False。
+    """
+    idle_time = get_idle_time()
+    return idle_time <= idle_threshold
+
+    
 def is_user_active_linux():
     try:
         idle_time = int(subprocess.check_output([XPRINTIDLE]).strip()) / 1000  # 转换为秒
@@ -221,7 +328,7 @@ def is_user_active_linux():
 
 def is_user_active():
     if sys.platform == WINDOWS:
-        return True
+        return is_user_active_windows()
     elif sys.platform == MACOS:
         return is_user_active_osx()
     elif sys.platform.startswith(LINUX):
@@ -247,7 +354,6 @@ def get_folder_paths(path, days_ago_min, days_ago_max):
     for root, dirs, files in os.walk(path):
         for dir_name in dirs:
             folder_path = os.path.join(root, dir_name)
-            print(folder_path)
             # 检查是否是三级子文件夹
             if folder_path.count(os.sep) - path.count(os.sep) == 3:
                 # 截取文件夹名最后三级，即yyyy/mm/dd三层
@@ -255,7 +361,6 @@ def get_folder_paths(path, days_ago_min, days_ago_max):
                 month = os.path.basename(os.path.dirname(folder_path))
                 year = os.path.basename(os.path.dirname(os.path.dirname(folder_path)))
                 last_three_parts = f"{year}/{month}/{day}"
-                print(last_three_parts)
                 try:
                     folder_date = datetime.datetime.strptime(last_three_parts, "%Y/%m/%d")
                     days_ago = (now - folder_date).days
@@ -281,7 +386,6 @@ class ImageVideoTool:
         :param resolution: 输出分辨率（格式如"1280x720"，默认保持原图尺寸）
         """
         self.image_folder = image_folder
-        print(self.image_folder)
         self.output_video = os.path.join(self.image_folder, output_video)
         self.framerate = framerate
         self.crf = crf
@@ -297,8 +401,21 @@ class ImageVideoTool:
         return len(os.listdir(self.image_folder))
     
     def get_folder_size(self):
-        #统计image_folder文件夹内所有文件大小的总和，单位为MB,使用du -sh命令
-        return subprocess.check_output(["du", "-sh", self.image_folder]).decode().split()[0]
+        from pathlib import Path
+        
+        folder = Path(self.image_folder)
+        
+        # 递归遍历所有文件并计算总大小
+        total_size = sum(file.stat().st_size for file in folder.rglob("*") if file.is_file())
+        size_in_mb = total_size / (1024 ** 2)
+        size_in_mb = round(size_in_mb, 2)
+        size_in_gb = total_size / (1024 ** 3)
+        size_in_gb = round(size_in_gb, 2)
+        # 如果size_in_gb小于小数点后两位，则采用size_in_mb
+        if size_in_gb < 1:
+            return str(size_in_mb) + "MB"
+        else:
+            return str(size_in_gb) + "GB"
 
     def images_to_video(self, 
                         sort_by: str = "name", 
@@ -428,7 +545,6 @@ if __name__ == "__main__":
     # text = "这是一个超大的字符串示例，包含一些关键词如apple、banana、cherry和date。"
     # keywords = ["app22le", "b33anana", "ch33erry", "d22ate", "egg11"]
     # result = count_unique_keywords(text, keywords)
-    # print(f"不重复出现的关键词数量: {result}")
     import time
     start_time = time.time()
     tool = ImageVideoTool("/home/liuwenwu/.local/share/MemoCoco/screenshots/2025/03/10")

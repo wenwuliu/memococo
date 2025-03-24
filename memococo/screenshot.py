@@ -1,6 +1,6 @@
 import os
 import time
-
+import sys
 import mss
 import numpy as np
 import json
@@ -18,6 +18,10 @@ from memococo.utils import (
     is_user_active,
     ImageVideoTool
 )
+
+WINDOWS = "win32"
+LINUX = "linux"
+MACOS = "darwin"
 
 def get_screenshot_path(date):
     return os.path.join(screenshots_path, date.strftime("%Y/%m/%d"))
@@ -54,7 +58,37 @@ def is_similar(img1, img2, similarity_threshold=0.9):
     similarity = mean_structured_similarity_index(img1, img2)
     return similarity >= similarity_threshold
 
-def take_active_window_screenshot():
+def take_active_on_windows():
+    from PIL import ImageGrab
+    import pygetwindow as gw
+    """
+    截取当前活动窗口的屏幕截图，并以 numpy 数组的形式返回。
+    
+    Returns:
+        np.ndarray: 当前活动窗口的截图数据（RGB 格式）。
+    """
+    try:
+        # 获取当前活动窗口
+        active_window = gw.getActiveWindow()
+        if active_window is None:
+            raise ValueError("无法获取当前活动窗口，请确保有活动窗口存在。")
+        
+        # 获取活动窗口的边界 (left, top, width, height)
+        left, top, width, height = active_window.left, active_window.top, active_window.width, active_window.height
+        
+        # 使用 Pillow 的 ImageGrab 截取指定区域
+        screenshot = ImageGrab.grab(bbox=(left, top, left + width, top + height))
+        
+        # 将截图转换为 numpy 数组 (RGB 格式)
+        screenshot_array = np.array(screenshot)
+        
+        return screenshot_array
+    
+    except Exception as e:
+        print(f"发生错误: {e}")
+        return None
+
+def take_active_on_linux():
     try:
         window_id = subprocess.check_output(['xdotool', 'getactivewindow']).strip()
         window_geometry = subprocess.check_output(['xdotool', 'getwindowgeometry', '--shell', window_id]).decode()
@@ -68,6 +102,16 @@ def take_active_window_screenshot():
     except Exception as e:
         logger.error(f"Error taking screenshot of active window: {e}")
     return None
+
+def take_active_window_screenshot():
+    if sys.platform == WINDOWS:
+        return take_active_on_windows()
+    elif sys.platform == MACOS:
+        return take_active_on_linux()
+    elif sys.platform.startswith(LINUX):
+        return take_active_on_linux()
+    else:
+        raise NotImplementedError("This platform is not supported")
 
 def take_screenshots(monitor=1):
     screenshots = []
@@ -126,7 +170,7 @@ def power_saving_mode(save_power):
     return False
     
 
-def record_screenshots_thread(ignored_apps, ignored_apps_updated, save_power = True,idle_time = 4,enable_compress = False):
+def record_screenshots_thread(ignored_apps, ignored_apps_updated, save_power = True,idle_time = 4,enable_compress = True):
     dirDate = datetime.datetime.now()
     create_directory_if_not_exists(get_screenshot_path(dirDate))
     logger.info("Started recording screenshots...")
@@ -186,7 +230,6 @@ def record_screenshots_thread(ignored_apps, ignored_apps_updated, save_power = T
             user_inactive_logged = False
             idle_time = default_idle_time
             last_user_active_time = datetime.datetime.now()  # 更新用户活动时间
-        # print(f"Embedding: {embedding}")
         active_app_name = get_active_app_name()
         active_window_title = get_active_window_title()
 

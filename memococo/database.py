@@ -4,7 +4,7 @@ from typing import Any, List
 
 from memococo.config import db_path
 
-Entry = namedtuple("Entry", ["id", "app", "title", "text", "timestamp", "jsontext","embedding"])
+Entry = namedtuple("Entry", ["id", "app", "title", "text", "timestamp", "jsontext"])
 
 def get_db_connection():
     return sqlite3.connect(db_path)

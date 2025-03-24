@@ -24,7 +24,7 @@
       <label for="ocr_tool" class="form-label">OCR Tool</label>
       <select class="form-control" id="ocr_tool" name="ocr_tool" required>
         <option value="trwebocr" {% if settings['ocr_tool'] == 'trwebocr' %}selected{% endif %}>trwebocr</option>
-        <option value="easy_ocr" {% if settings['ocr_tool'] == 'rapidocr' %}selected{% endif %}>rapidocr</option>
+        <option value="rapidocr" {% if settings['ocr_tool'] == 'rapidocr' %}selected{% endif %}>rapidocr</option>
       </select>
       <div class="invalid-feedback">
         Please select an OCR tool.

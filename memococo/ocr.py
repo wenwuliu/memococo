@@ -26,7 +26,6 @@ def extract_text_from_image(image,ocr_engine='trwebocr'):
             return text
         elif ocr_engine == 'rapidocr':
             result = rapid_ocr(image)
-            print(result)
             text = ""
             for item in result:
                 text += item[1]
@@ -41,7 +40,7 @@ def extract_text_from_image(image,ocr_engine='trwebocr'):
 def rapid_ocr(image):
     from rapidocr_onnxruntime import RapidOCR
     # 使用RapidOCR进行图像文本提取
-    engine = RapidOCR()
+    engine = RapidOCR(params={"Global.lang_det": "ch_server", "Global.lang_rec": "ch_server"})
     result,elapse = engine(image)
     return result
 
