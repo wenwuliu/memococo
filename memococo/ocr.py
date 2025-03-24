@@ -24,12 +24,26 @@ def extract_text_from_image(image,ocr_engine='trwebocr'):
             for item in json.loads(response):
                 text += item[1]
             return text
+        elif ocr_engine == 'rapidocr':
+            result = rapid_ocr(image)
+            print(result)
+            text = ""
+            for item in result:
+                text += item[1]
+            return text
         else:
             logger.error(f'Invalid OCR engine: {ocr_engine}')
             return None
     except Exception as e:
         logger.error(f'Error extracting text from image: {e}')
         return ""
+    
+def rapid_ocr(image):
+    from rapidocr_onnxruntime import RapidOCR
+    # 使用RapidOCR进行图像文本提取
+    engine = RapidOCR()
+    result,elapse = engine(image)
+    return result
 
 def tesseract_ocr(image):
     import pytesseract
@@ -107,8 +121,9 @@ if __name__ == "__main__":
             screenshot = np.array(sct.grab(monitor_))
             screenshot = screenshot[:, :, [2, 1, 0]]
             screenshots.append(screenshot)
-        response = extract_text_from_image(screenshots[0],ocr_engine='tesseract')
+        response = extract_text_from_image(screenshots[0],ocr_engine='rapid_ocr')
         end_time = time.time()
+        logger.info("seperate")
         logger.info(response)
         logger.info(f"耗时：{end_time - start_time}")
         #将json数组中所有的第二个元素抽取出来，并拼接成字符串
