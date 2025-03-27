@@ -187,10 +187,17 @@ def record_screenshots_thread(ignored_apps, ignored_apps_updated, save_power = T
         if not is_user_active():
             if not user_inactive_logged:
                 logger.info("User is inactive, sleeping...")
-                idle_time = 1
+                idle_time = 3
                 user_inactive_logged = True
             #如果距离上次用户活动时间超过3分钟，则开始OCR任务
             if (datetime.datetime.now() - last_user_active_time).total_seconds() > 30:
+                cpu_usage = psutil.cpu_percent(interval=1)
+                cpu_temperature = get_cpu_temperature()
+                logger.info(f"cpu占用：{cpu_usage}%，当前温度：{cpu_temperature}°C")
+                # 如果cpu占用率大于70%或者温度高于70度，则增加idle_time来避免高温降频
+                if cpu_usage > 70 or ( cpu_temperature is not None and cpu_temperature > 70 ):
+                    logger.info(f"cpu占用率过高，当前idle_time为{idle_time}")
+                    idle_time += 1
                 # 如果处于省电模式，则跳过OCR任务
                 if power_saving_mode(save_power):
                     continue

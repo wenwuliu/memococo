@@ -434,6 +434,9 @@ class ImageVideoTool:
                 # 要求文件大小大于0字节
                 if os.path.getsize(os.path.join(self.image_folder, file)) > 0:
                     images.append(file)
+                else:
+                    #删除空文件
+                    os.remove(os.path.join(self.image_folder, file))
         
         if not images:
             raise FileNotFoundError("No valid images found in folder")
@@ -464,9 +467,23 @@ class ImageVideoTool:
             writer.writerow(["filename", "timestamp", "frame_number"])
             for idx, img in enumerate(images):
                 timestamp = timedelta(seconds=idx/self.framerate)
-                writer.writerow([img, str(timestamp), idx+1])        
+                writer.writerow([img, str(timestamp), idx+1])
 
-        # 5. 生成视频
+        # 5. 读取第一张图片获取尺寸
+        # first_image_path = os.path.join(self.image_folder, renamed_images[0])
+        # first_image = cv2.imread(first_image_path)
+        # height, width, _ = first_image.shape
+
+        # 6. 生成视频
+        # fourcc = cv2.VideoWriter_fourcc(*'H264')  # 设置编码格式
+        # out = cv2.VideoWriter(self.output_video, fourcc, self.framerate, (width, height))  # 创建视频写入对象
+
+        # for img in renamed_images:
+        #     img_path = os.path.join(self.image_folder, img)
+        #     frame = cv2.imread(img_path)
+        #     out.write(frame)  # 写入帧
+
+        # out.release()  # 释放视频写入对象
         command = [
             "ffmpeg",
             "-framerate", f"{self.framerate}",          # 输入帧率
@@ -489,7 +506,7 @@ class ImageVideoTool:
             logger.warning("FFmpeg Error:", e.stderr.decode())
             raise
         
-        # 6. 删除重命名后的图片
+        # 7. 删除重命名后的图片
         for img in renamed_images:
             os.remove(os.path.join(self.image_folder, img))
 
@@ -547,9 +564,9 @@ if __name__ == "__main__":
     # result = count_unique_keywords(text, keywords)
     import time
     start_time = time.time()
-    tool = ImageVideoTool("/home/liuwenwu/.local/share/MemoCoco/screenshots/2025/03/10")
+    tool = ImageVideoTool("/home/liuwenwu/.local/share/MemoCoco/screenshots/2025/03/24")
     # # 转换图片（按文件名排序）
-    tool.images_to_video( sort_by="time")
+    tool.images_to_video( sort_by="name")
     # time.sleep(1)
     end_time = time.time()
     print(f"程序加载工具：{end_time - start_time:.2f}秒")
