@@ -235,6 +235,26 @@ def compress_folder():
     # 重定向到未备份文件夹页面
     return redirect(url_for("unbacked_up_folders"))
 
+def set_cpu_affinity(pid=None, cpu_list=None):
+    import psutil
+    """
+    设置指定进程的 CPU 亲和性。
+    :param pid: 进程 ID，默认为当前进程。
+    :param cpu_list: 允许运行的 CPU 核心列表，例如 [0, 1, 2, 3]。
+    """
+    if pid is None:
+        pid = os.getpid()  # 默认操作当前进程
+    process = psutil.Process(pid)
+    
+    if cpu_list is None:
+        cpu_list = list(range(psutil.cpu_count()))  # 默认使用所有核心
+    
+    try:
+        process.cpu_affinity(cpu_list)
+        print(f"Set CPU affinity for PID {pid} to cores: {cpu_list}")
+    except Exception as e:
+        print(f"Failed to set CPU affinity: {e}")
+
 if __name__ == "__main__":
     create_db()
 
@@ -254,5 +274,7 @@ if __name__ == "__main__":
     # Start the thread to record screenshots
     t = Thread(target=record_screenshots_thread,args=(ignored_apps, ignored_apps_updated,True,3,True))
     t.start()
+
+    set_cpu_affinity()
 
     app.run(port=8082)

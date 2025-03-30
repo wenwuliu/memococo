@@ -16,7 +16,8 @@ from memococo.utils import (
     get_active_app_name,
     get_active_window_title,
     is_user_active,
-    ImageVideoTool
+    ImageVideoTool,
+    get_cpu_temperature
 )
 
 WINDOWS = "win32"
@@ -150,22 +151,10 @@ def compress_img_PIL(img_path, compress_rate=0.9, show=False):
         if show:
             img_resize.show()  # 在照片应用中打开图片
 
-# 获取 CPU 温度
-def get_cpu_temperature():
-    try:
-        temperatures = psutil.sensors_temperatures()
-        if 'coretemp' in temperatures:
-            for entry in temperatures['coretemp']:
-                if entry.label == 'Package id 0':
-                    return entry.current
-    except Exception as e:
-        logger.warning(f"Error getting CPU temperature: {e}")
-    return None
-
 def power_saving_mode(save_power):
     if save_power:
         battery = psutil.sensors_battery()
-        if battery.percent < 75 and battery.power_plugged == False:
+        if  battery is not None and battery.percent < 75 and battery.power_plugged == False:
             return True
     return False
     
@@ -193,7 +182,7 @@ def record_screenshots_thread(ignored_apps, ignored_apps_updated, save_power = T
             if (datetime.datetime.now() - last_user_active_time).total_seconds() > 30:
                 cpu_usage = psutil.cpu_percent(interval=1)
                 cpu_temperature = get_cpu_temperature()
-                logger.info(f"cpu占用：{cpu_usage}%，当前温度：{cpu_temperature}°C")
+                # logger.info(f"cpu占用：{cpu_usage}%，当前温度：{cpu_temperature}°C")
                 # 如果cpu占用率大于70%或者温度高于70度，则增加idle_time来避免高温降频
                 if cpu_usage > 70 or ( cpu_temperature is not None and cpu_temperature > 70 ):
                     logger.info(f"cpu占用率过高，当前idle_time为{idle_time}")

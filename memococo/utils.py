@@ -371,6 +371,21 @@ def get_folder_paths(path, days_ago_min, days_ago_max):
                     pass
     return folder_paths
 
+# 获取 CPU 温度
+def get_cpu_temperature():
+    #如果是Windows下，则直接返回
+    if sys.platform == WINDOWS:
+        return None
+    try:
+        temperatures = psutil.sensors_temperatures()
+        if 'coretemp' in temperatures:
+            for entry in temperatures['coretemp']:
+                if entry.label == 'Package id 0':
+                    return entry.current
+    except Exception as e:
+        logger.warning(f"Error getting CPU temperature: {e}")
+    return None
+
 
 class ImageVideoTool:
     def __init__(self, 
