@@ -1,6 +1,6 @@
 import sys
 import subprocess
-from memococo.config import logger
+from memococo.config import logger,screenshots_path,appdata_folder
 import cv2
 import csv
 import os
@@ -385,6 +385,28 @@ def get_cpu_temperature():
     except Exception as e:
         logger.warning(f"Error getting CPU temperature: {e}")
     return None
+
+
+def get_unbacked_up_folders():
+    # 获取 screenshots_path 下的所有文件夹
+    all_folders = get_folder_paths(screenshots_path, 0, 30)
+    # 筛选出未备份的文件夹
+    unbacked_up_folders = [folder for folder in all_folders if not ImageVideoTool(folder).is_backed_up()]
+    # 按照文件夹名排序
+    unbacked_up_folders.sort()
+    folder_info = []
+    # 查询未备份文件夹的图片数量以及文件夹大小
+    for folder in unbacked_up_folders:
+        tool = ImageVideoTool(folder)
+        folder_info.append({
+            "folder": folder,
+            "image_count": tool.get_image_count(),
+            "folder_size": tool.get_folder_size()
+        })
+    return folder_info
+
+def get_total_size():
+    return ImageVideoTool(appdata_folder).get_folder_size()
 
 
 class ImageVideoTool:

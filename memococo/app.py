@@ -9,7 +9,7 @@ from memococo.config import appdata_folder, screenshots_path, app_name_cn, app_v
 from memococo.database import create_db, get_all_entries, get_timestamps, get_unique_apps,get_ocr_text
 from memococo.ollama import extract_keywords_to_json,query_ollama
 from memococo.screenshot import record_screenshots_thread
-from memococo.utils import human_readable_time, timestamp_to_human_readable,ImageVideoTool,get_folder_paths,count_unique_keywords,check_port
+from memococo.utils import human_readable_time, timestamp_to_human_readable,ImageVideoTool,get_folder_paths,count_unique_keywords,check_port,get_unbacked_up_folders,get_total_size
 from memococo.app_map import get_app_names_by_app_codes,get_app_code_by_app_name
 import time
 
@@ -196,22 +196,8 @@ def get_ocr_text_by_timestamp(timestamp):
     
 @app.route("/unbacked_up_folders")
 def unbacked_up_folders():
-    # 获取 screenshots_path 下的所有文件夹
-    all_folders = get_folder_paths(screenshots_path, 0, 30)
-    # 筛选出未备份的文件夹
-    unbacked_up_folders = [folder for folder in all_folders if not ImageVideoTool(folder).is_backed_up()]
-    total_size = ImageVideoTool(appdata_folder).get_folder_size()
-    # 按照文件夹名排序
-    unbacked_up_folders.sort()
-    folder_info = []
-    # 查询未备份文件夹的图片数量以及文件夹大小
-    for folder in unbacked_up_folders:
-        tool = ImageVideoTool(folder)
-        folder_info.append({
-            "folder": folder,
-            "image_count": tool.get_image_count(),
-            "folder_size": tool.get_folder_size()
-        })
+    folder_info = get_unbacked_up_folders()
+    total_size = get_total_size()
     # 将未备份的文件夹传递给模板
     return render_template("unbacked_up_folders.html", folders=folder_info,totalSize=total_size)
 

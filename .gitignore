@@ -5,3 +5,6 @@
 __pycache__/
 
 memococo/__pycache__/
+
+memococo/static/win/build/
+memococo/static/win/dist/
