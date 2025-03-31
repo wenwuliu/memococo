@@ -251,8 +251,8 @@ if __name__ == "__main__":
     logger.info(f"check port: {check_port(8082)}")
     
     #如果8082端口被占用，则提示并退出
-    if check_port(8082):
-        logger.error("Port 8082 is already in use. Please close the program that is using this port and try again.")
+    if check_port(8842):
+        logger.error("Port 8842 is already in use. Please close the program that is using this port and try again.")
         sys.exit(1)
 
     ignored_apps = Manager().list(get_settings()["ignored_apps"])
@@ -263,4 +263,4 @@ if __name__ == "__main__":
 
     set_cpu_affinity()
 
-    app.run(port=8082)
+    app.run(port=8842)

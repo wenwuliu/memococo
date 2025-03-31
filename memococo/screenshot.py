@@ -309,7 +309,6 @@ def record_screenshots_thread(ignored_apps, ignored_apps_updated, save_power = T
             else:
                 # 初次运行或截图获取失败时强制保存
                 should_save = True
-        logger.info(f'{active_app_name} {active_window_title} {should_save} , {app_changed}')
         if should_save:
             startTime = time.time()
             logger.info("Screenshot changed, saving...")
