@@ -3,7 +3,6 @@ import time
 import sys
 import mss
 import numpy as np
-import json
 from PIL import Image
 import datetime
 from memococo.config import screenshots_path, args,app_name_en,app_name_cn,logger,get_settings
@@ -30,9 +29,14 @@ def get_screenshot_path(date):
 def create_directory_if_not_exists(path):
     if not os.path.exists(path):
         os.makedirs(path)
-
+        
 
 def mean_structured_similarity_index(img1, img2, L=255):
+    # 新增形状检查
+    if img1.shape != img2.shape:
+        logger.debug("Image dimensions changed, skipping similarity check")
+        return 0.0  # 返回0表示完全不同
+    
     K1, K2 = 0.01, 0.03
     C1, C2 = (K1 * L) ** 2, (K2 * L) ** 2
 
@@ -157,9 +161,60 @@ def power_saving_mode(save_power):
         if  battery is not None and battery.percent < 75 and battery.power_plugged == False:
             return True
     return False
+
+import threading
+import time
+
+# 自定义异常类，用于表示超时错误
+class TimeoutException(Exception):
+    pass
+
+# 超时上下文管理器
+class timeout:
+    def __init__(self, seconds):
+        self.seconds = seconds
+        self.timer_thread = None
+        self.exc = None
+
+    def __enter__(self):
+        # 定义一个定时器线程，在超时时抛出异常
+        def raise_timeout():
+            self.exc = TimeoutException(f"Execution timed out after {self.seconds} seconds")
+        
+        self.timer_thread = threading.Timer(self.seconds, raise_timeout)
+        self.timer_thread.start()
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        # 停止定时器线程
+        if self.timer_thread:
+            self.timer_thread.cancel()
+
+        # 如果超时异常被触发，则抛出异常
+        if self.exc:
+            raise self.exc
+
+        # 返回 False 表示不抑制其他异常
+        return False
+
+def get_ocr_result(pic,ocr_engine):
+    try:
+        with timeout(12):
+            result = extract_text_from_image(pic,ocr_engine)
+            return result
+    except TimeoutException:
+        logger.info("OCR执行超时(>12秒)")
+        return None
+        
     
 
 def record_screenshots_thread(ignored_apps, ignored_apps_updated, save_power = True,idle_time = 4,enable_compress = True):
+    # 新增变量记录上次应用状态
+    last_app_name = None
+    last_window_title = None
+    last_window_shot = None
+    delay_time = 0
+    
     dirDate = datetime.datetime.now()
     create_directory_if_not_exists(get_screenshot_path(dirDate))
     logger.info("Started recording screenshots...")
@@ -232,15 +287,6 @@ def record_screenshots_thread(ignored_apps, ignored_apps_updated, save_power = T
         #如果window_title为空或为None，但app_name不为空,则将window_title设置为app_name
         if not active_window_title and active_app_name:
             active_window_title = active_app_name
-        if not active_app_name and active_window_title:
-            if active_window_title == "微信":
-                active_app_name = "wechat"
-            # 如果active_window_title中包含'Microsoft​ Edge'，则将active_app_name设置为'Microsoft​ Edge'
-            if 'Microsoft​ Edge' in active_window_title:
-                active_app_name = 'microsoft-edge'
-            
-
-        #如果active_app_name 在ignored_apps中，则不插入数据库
         if active_app_name in ignored_apps:
             continue
         
@@ -250,39 +296,59 @@ def record_screenshots_thread(ignored_apps, ignored_apps_updated, save_power = T
         
         screenshots = take_screenshots()
         last_screenshot = last_screenshots[0]
-        window_shot = None
-        screenshot = screenshots[0]
-        if len(screenshots) > 1:
-            # 取最后一个截图作为窗口截图
-            window_shot = screenshots[-1]
-
-        if not is_similar(screenshot, last_screenshot):
+        window_shot = screenshots[-1] if len(screenshots) > 1 else screenshots[0]
+        # 新增应用状态比较逻辑
+        app_changed = (active_app_name != last_app_name) or (active_window_title != last_window_title)
+        should_save = False
+        if app_changed:
+            should_save = True
+        else:
+            # 当应用未变化时进行图像相似度比较
+            if last_window_shot is not None and window_shot is not None:
+                should_save = not is_similar(window_shot, last_window_shot) and not is_similar(last_screenshot,screenshots[0])
+            else:
+                # 初次运行或截图获取失败时强制保存
+                should_save = True
+        logger.info(f'{active_app_name} {active_window_title} {should_save} , {app_changed}')
+        if should_save:
             startTime = time.time()
             logger.info("Screenshot changed, saving...")
-            last_screenshots[0] = screenshot
-            image = Image.fromarray(screenshot)
+            
+            # 更新最后保存的截图和应用状态
+            last_app_name = active_app_name
+            last_window_title = active_window_title
+            last_window_shot = window_shot.copy() if window_shot is not None else None
+
+            # 保存完整截图和windows的OCR
+            image = Image.fromarray(screenshots[0])
             timestamp = int(time.time())
             image_path = os.path.join(get_screenshot_path(dirDate), f"{timestamp}.webp")
-            image.save(image_path,format="webp",lossless=True)
+            image.save(image_path, format="webp", lossless=True)
+            
             # 如果系统cpu占用过高，则不进行ocr
             cpu_usage = psutil.cpu_percent(interval=1)
             cpu_temperature = get_cpu_temperature()
-            logger.info(f"cpu占用：{cpu_usage}%，当前温度：{cpu_temperature}°C")
             if cpu_usage > 70 or ( cpu_temperature is not None and cpu_temperature > 70 ):
                 logger.info(f"CPU占用过高，不进行ocr，当前cpu占用：{cpu_usage}%，当前温度：{cpu_temperature}°C")
+                delay_time = 10
                 text = ""
             elif power_saving_mode(save_power):
                 logger.info(f"省电模式开启，不进行ocr")
                 text = ""
+            elif delay_time > 0:
+                logger.info(f'暂停ocr，剩余等待次数：{delay_time}')
+                text = ""
+                delay_time -= 1
             else:
                 if window_shot is not None:
-                    text = extract_text_from_image(window_shot,ocr_engine = get_settings()['ocr_tool'])
+                    text = get_ocr_result(window_shot,ocr_engine = get_settings()['ocr_tool'])
                     logger.info("window_shot ocr识别完成")
-                elif screenshot is not None:
-                    text = extract_text_from_image(screenshot,ocr_engine = get_settings()['ocr_tool'])
+                elif screenshots[0] is not None:
+                    text = get_ocr_result(screenshots[0],ocr_engine = get_settings()['ocr_tool'])
                     logger.info("screenshot ocr识别完成")
                 else:
                     text = ""
+                    delay_time = 10
                     logger.info("ocr识别失败，不存在截图")
             # 如果当前的年月日和dirDate不同，则创建新的目录
             if dirDate != datetime.datetime.now().date():

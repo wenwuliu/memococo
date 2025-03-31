@@ -14,7 +14,6 @@ install_requires = [
     "toml>=0.10.2",
     "pyautogui>=0.9.54",
     "ffmpeg-python>=0.2.0",
-    "expiringdict>=1.2.2",
     "rapidocr_onnxruntime>=1.2.3",
     "requests>=2.32.3",
     "jsonify>=0.5",

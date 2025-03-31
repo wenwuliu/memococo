@@ -3,14 +3,11 @@ import base64
 from memococo.config import logger
 import json
 import cv2
-import os
 
 
 def extract_text_from_image(image,ocr_engine='trwebocr'):
     try:
-        if ocr_engine == 'easy_ocr':
-            return easy_ocr(image)
-        elif ocr_engine == 'tesseract':
+        if ocr_engine == 'tesseract':
             result = tesseract_ocr(image)
             text = ""
             for item in json.loads(result):
@@ -34,7 +31,7 @@ def extract_text_from_image(image,ocr_engine='trwebocr'):
             logger.error(f'Invalid OCR engine: {ocr_engine}')
             return None
     except Exception as e:
-        logger.error(f'Error extracting text from image: {e}')
+        logger.error(f'Error occurred while extracting text from image: {e}')
         return ""
     
 def rapid_ocr(image):
@@ -98,8 +95,6 @@ def image_preprocessing(image):
 def easy_ocr(image):
     image = image_preprocessing(image)
     import easyocr
-    # 拼接路径 static/easyocr/model
-    model_path = os.path.join(os.path.dirname(__file__), 'static','easyocr','model')
     reader = easyocr.Reader(['ch_sim','en'],gpu=True)
     result = reader.readtext(image,detail=0)
     # 将result字符串数组转为字符串，按空格分隔
