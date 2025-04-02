@@ -1,0 +1,8 @@
+#!/bin/sh
+set -e
+
+username=$(logname 2>/dev/null || echo "$SUDO_USER")
+homedir=$(getent passwd "$username" | cut -d: -f6)
+sudo -u "$username" systemctl --user stop memococo.service || true
+sudo -u "$username" systemctl --user disable memococo.service || true
+rm -f "$homedir/.config/systemd/user/memococo.service"

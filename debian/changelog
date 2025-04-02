@@ -1,0 +1,6 @@
+memococo (2.1.45-1) stable; urgency=medium
+
+  * Initial release of MemoCoco.
+  * Added support for Flask web interface and screen monitoring.
+
+ -- liuwenwu <liuawu625@163.com>  Mon, 31 Mar 2025 22:31:37 +0800
