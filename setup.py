@@ -33,7 +33,7 @@ if current_os in OS_DEPENDENCIES:
 
 setup(
     name="MemoCoco",
-    version="2.1.46",
+    version="2.1.47",
     description="MemoCoco - 时间胶囊",
     long_description=long_description,
     long_description_content_type="text/markdown",
@@ -42,18 +42,18 @@ setup(
     packages=find_packages(),
     python_requires=">=3.8",  # 指定Python最低版本要求
     install_requires=install_requires,
-    entry_points={
-        "console_scripts":[
-            'memococo=memococo.app:main',
-        ],
-    },
-    data_files=[
-        ('/usr/share/memococo', ['debian/memococo.service']),
-    ],
-    options={
-        'install': {'install_lib': "/usr/lib/python3/dist-packages"},
-        'bdist_deb': {'install_root': "~/.local"},
-    },
+    # entry_points={
+    #     "console_scripts":[
+    #         'memococo=memococo.app:main',
+    #     ],
+    # },
+    # data_files=[
+    #     ('/usr/share/memococo', ['debian/memococo.service']),
+    # ],
+    # options={
+    #     'install': {'install_lib': "/usr/lib/python3/dist-packages"},
+    #     'bdist_deb': {'install_root': "~/.local"},
+    # },
     include_package_data=True,
     extras_require=OS_DEPENDENCIES,
     classifiers=[

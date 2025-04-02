@@ -162,58 +162,38 @@ def power_saving_mode(save_power):
             return True
     return False
 
-import threading
-import time
-
-# 自定义异常类，用于表示超时错误
-class TimeoutException(Exception):
-    pass
-
-# 超时上下文管理器
-class timeout:
-    def __init__(self, seconds):
-        self.seconds = seconds
-        self.timer_thread = None
-        self.exc = None
-
-    def __enter__(self):
-        # 定义一个定时器线程，在超时时抛出异常
-        def raise_timeout():
-            self.exc = TimeoutException(f"Execution timed out after {self.seconds} seconds")
-        
-        self.timer_thread = threading.Timer(self.seconds, raise_timeout)
-        self.timer_thread.start()
-        return self
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        # 停止定时器线程
-        if self.timer_thread:
-            self.timer_thread.cancel()
-
-        # 如果超时异常被触发，则抛出异常
-        if self.exc:
-            raise self.exc
-
-        # 返回 False 表示不抑制其他异常
-        return False
-
 def get_ocr_result(pic,ocr_engine):
     try:
-        with timeout(12):
-            result = extract_text_from_image(pic,ocr_engine)
-            return result
-    except TimeoutException:
-        logger.info("OCR执行超时(>12秒)")
+        result = extract_text_from_image(pic,ocr_engine)
+        return result
+    except Exception as e:
+        logger.error(f"Error extracting text from image: {e}")
         return None
         
-    
+import concurrent.futures
+import time
+
+def get_ocr_result_with_timeout(pic, ocr_engine, timeout=12):
+    with concurrent.futures.ThreadPoolExecutor() as executor:
+        future = executor.submit(extract_text_from_image, pic, ocr_engine)
+        try:
+            result = future.result(timeout=timeout)
+            return result
+        except concurrent.futures.TimeoutError:
+            logger.info("OCR执行超时(>12秒)")
+            return None
 
 def record_screenshots_thread(ignored_apps, ignored_apps_updated, save_power = True,idle_time = 4,enable_compress = True):
     # 新增变量记录上次应用状态
     last_app_name = None
     last_window_title = None
     last_window_shot = None
+    # 延迟次数
     delay_time = 0
+    # 延迟时间
+    delay_interval = 20
+    # 上次跳过时间
+    last_skip_time = datetime.datetime.now()
     
     dirDate = datetime.datetime.now()
     create_directory_if_not_exists(get_screenshot_path(dirDate))
@@ -239,7 +219,7 @@ def record_screenshots_thread(ignored_apps, ignored_apps_updated, save_power = T
                 cpu_temperature = get_cpu_temperature()
                 # logger.info(f"cpu占用：{cpu_usage}%，当前温度：{cpu_temperature}°C")
                 # 如果cpu占用率大于70%或者温度高于70度，则增加idle_time来避免高温降频
-                if cpu_usage > 70 or ( cpu_temperature is not None and cpu_temperature > 70 ):
+                if cpu_usage > 70 or ( cpu_temperature is not None and cpu_temperature > 75 ):
                     logger.info(f"cpu占用率过高，当前idle_time为{idle_time}")
                     idle_time += 1
                 # 如果处于省电模式，则跳过OCR任务
@@ -327,27 +307,31 @@ def record_screenshots_thread(ignored_apps, ignored_apps_updated, save_power = T
             # 如果系统cpu占用过高，则不进行ocr
             cpu_usage = psutil.cpu_percent(interval=1)
             cpu_temperature = get_cpu_temperature()
-            if cpu_usage > 70 or ( cpu_temperature is not None and cpu_temperature > 70 ):
-                logger.info(f"CPU占用过高，不进行ocr，当前cpu占用：{cpu_usage}%，当前温度：{cpu_temperature}°C")
-                delay_time = 10
-                text = ""
-            elif power_saving_mode(save_power):
-                logger.info(f"省电模式开启，不进行ocr")
-                text = ""
-            elif delay_time > 0:
+            # 计算当前时间和上次时间last_skip_time相隔多少秒
+            if delay_time > 0 and (int((datetime.datetime.now() - last_skip_time).total_seconds())) < delay_interval:
+                delay_time -= 1
                 logger.info(f'暂停ocr，剩余等待次数：{delay_time}')
                 text = ""
-                delay_time -= 1
+            elif cpu_usage > 70 or ( cpu_temperature is not None and cpu_temperature > 75 ):
+                logger.info(f"CPU占用过高，不进行ocr，当前cpu占用：{cpu_usage}%，当前温度：{cpu_temperature}°C")
+                delay_time = 2
+                last_skip_time = datetime.datetime.now()
+                text = ""
+            elif power_saving_mode(save_power):
+                delay_time = 0
+                logger.info(f"省电模式开启，不进行ocr")
+                text = ""
             else:
-                if window_shot is not None:
-                    text = get_ocr_result(window_shot,ocr_engine = get_settings()['ocr_tool'])
-                    logger.info("window_shot ocr识别完成")
-                elif screenshots[0] is not None:
-                    text = get_ocr_result(screenshots[0],ocr_engine = get_settings()['ocr_tool'])
-                    logger.info("screenshot ocr识别完成")
+                delay_time = 0
+                if screenshots[0] is not None:
+                    text = get_ocr_result_with_timeout(screenshots[0],ocr_engine = get_settings()['ocr_tool'])
+                    if text:
+                        logger.info("screenshot ocr识别完成")
+                    else:
+                        delay_time = 2
+                        last_skip_time = datetime.datetime.now()
                 else:
                     text = ""
-                    delay_time = 10
                     logger.info("ocr识别失败，不存在截图")
             # 如果当前的年月日和dirDate不同，则创建新的目录
             if dirDate != datetime.datetime.now().date():

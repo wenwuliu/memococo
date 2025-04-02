@@ -203,9 +203,17 @@ def get_active_app_name_linux():
         window_id = subprocess.check_output([XDOTOOL, 'getactivewindow']).strip()
         # 使用xprop获取窗口的应用程序名称
         app_name = subprocess.check_output([XPROP, '-id', window_id, WM_CLASS]).decode()
+        # 如果app_name包含WM_CLASS,则提取应用程序名称
+        if "WM_CLASS:  not found." in app_name:
+            window_title = subprocess.check_output([XPROP, '-id', window_id, _NET_WM_NAME]).decode()
+            window_title = window_title.split('=')[1].strip().strip('"')
+            return window_title
         # 提取应用程序名称
-        app_name = app_name.split('=')[1].strip().split(',')[0].strip('"')
-        return app_name
+        parts = app_name.split('=')[1].strip().split(',')
+        if len(parts) > 0:
+            app_name = parts[0].strip('"')
+            return app_name
+        return None
     except Exception as e:
         logger.warning(f"Error getting active app name on Linux: {e}")
         return None

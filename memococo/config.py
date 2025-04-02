@@ -6,7 +6,7 @@ import toml
 app_name_cn = "时光胶囊"
 app_name_en = "MemoCoco"
 main_app_name = app_name_en
-app_version = "2.1.46"
+app_version = "2.1.47"
 
 parser = argparse.ArgumentParser(description=main_app_name)
 
@@ -105,7 +105,7 @@ console = logging.StreamHandler()
 console.setLevel(logging.INFO)
 logger.addHandler(console)
 #设置logger最大文件大小为10MB，最多保留5个备份文件
-file_handler = RotatingFileHandler(os.path.join(appdata_folder, "memococo.log"), maxBytes=10*1024*1024, backupCount=4)
+file_handler = RotatingFileHandler(os.path.join(appdata_folder, "memococo.log"), maxBytes=10*1024*1024, backupCount=1)
 file_handler.setLevel(logging.DEBUG)
 file_handler.setFormatter(formatter)
 logger.addHandler(file_handler)
