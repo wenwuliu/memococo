@@ -37,7 +37,7 @@
         const itemsPerPage = 20;
         let currentPage = 1;
         function formatDate(timestamp) {
-            const date = new Date(timestamp * 1000); 
+            const date = new Date(timestamp * 1000);
             const year = date.getFullYear();
             const month = String(date.getMonth() + 1).padStart(2, '0');
             const day = String(date.getDate()).padStart(2, '0');
@@ -71,8 +71,44 @@
                     <div class="modal fade" id="modal-${start + index}" tabindex="-1" role="dialog" aria-labelledby="exampleModalLabel" aria-hidden="true">
                         <div class="modal-dialog modal-xl" role="document" style="max-width: none; width: 100vw; height: 100vh; padding: 20px;">
                             <div class="modal-content" style="height: calc(100vh - 40px); width: calc(100vw - 40px); padding: 0;">
-                                <div class="modal-body" style="padding: 0;">
-                                    <img src="/pictures/${entry[4]}.webp" alt="Image" style="width: 100%; height: 100%; object-fit: contain; margin: 0 auto;">
+                                <div class="modal-header" style="background-color: rgba(0,0,0,0.03); border-bottom: 1px solid rgba(0,0,0,0.125);">
+                                    <div>
+                                        <h5 class="modal-title">${formattedDate}</h5>
+                                        <div class="text-muted small">
+                                            <span class="badge badge-pill badge-primary">${entry[1] || 'Unknown App'}</span>
+                                            ${entry[2] ? `<span class="ml-2">${entry[2]}</span>` : ''}
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <button type="button" class="btn btn-sm btn-outline-primary mr-2" onclick="toggleText(${start + index}); return false;">
+                                            <i class="bi bi-text-paragraph"></i> 显示文本
+                                        </button>
+                                        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                                            <span aria-hidden="true">&times;</span>
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="modal-body" style="padding: 0; position: relative;">
+                                    <div class="image-container" style="width: 100%; height: 100%;">
+                                        <img src="/pictures/${entry[4]}.webp" alt="Image" style="width: 100%; height: 100%; object-fit: contain; margin: 0 auto;">
+                                    </div>
+
+                                    <!-- 文本显示区域 -->
+                                    <div id="text-overlay-${start + index}" class="text-overlay" style="display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(255,255,255,0.95); color: #333; padding: 20px; overflow-y: auto; z-index: 1050;">
+                                        <div class="text-content" style="max-width: 800px; margin: 0 auto; font-size: 16px; line-height: 1.6;">
+                                            <pre style="white-space: pre-wrap; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: transparent; border: none; padding: 10px; border-radius: 5px;">${entry[3] || '没有可用的文本内容'}</pre>
+                                        </div>
+                                    </div>
+
+                                    <!-- 左右导航按钮 -->
+                                    <a class="carousel-control-prev" href="#" role="button" onclick="navigateImage(${start + index}, 'prev'); return false;" style="width: 10%;">
+                                        <span class="carousel-control-prev-icon" aria-hidden="true" style="background-color: rgba(0,0,0,0.3); border-radius: 50%; padding: 15px;"></span>
+                                        <span class="sr-only">Previous</span>
+                                    </a>
+                                    <a class="carousel-control-next" href="#" role="button" onclick="navigateImage(${start + index}, 'next'); return false;" style="width: 10%;">
+                                        <span class="carousel-control-next-icon" aria-hidden="true" style="background-color: rgba(0,0,0,0.3); border-radius: 50%; padding: 15px;"></span>
+                                        <span class="sr-only">Next</span>
+                                    </a>
                                 </div>
                             </div>
                         </div>
@@ -129,6 +165,257 @@
             } else {
                 alert("Invalid page number");
             }
+        }
+
+        // 导航到上一张或下一张图片
+        function navigateImage(currentIndex, direction) {
+            // 获取当前页的起始索引
+            const start = (currentPage - 1) * itemsPerPage;
+
+            // 计算当前图片在所有图片中的索引
+            // 将页面内索引转换为全局索引
+            const globalIndex = currentIndex - start;
+            const totalImages = entries.length;
+
+            // 关闭当前模态框（使用原生 JavaScript）
+            const currentModal = document.getElementById(`modal-${currentIndex}`);
+            if (currentModal) {
+                // 触发关闭按钮的点击事件
+                const closeButton = currentModal.querySelector('.close');
+                if (closeButton) {
+                    closeButton.click();
+                } else {
+                    // 备用方法：直接移除模态框的显示类
+                    currentModal.classList.remove('show');
+                    currentModal.style.display = 'none';
+                    document.body.classList.remove('modal-open');
+                    const modalBackdrops = document.getElementsByClassName('modal-backdrop');
+                    while (modalBackdrops.length > 0) {
+                        modalBackdrops[0].parentNode.removeChild(modalBackdrops[0]);
+                    }
+                }
+            }
+
+            // 计算下一张或上一张图片的全局索引
+            let nextGlobalIndex;
+            if (direction === 'next') {
+                // 如果是最后一张图片，则不允许继续往后翻页
+                if (globalIndex >= totalImages - 1) {
+                    // 如果是最后一张图片，则不允许继续往后翻页
+                    return; // 直接返回，不执行翻页
+                }
+                nextGlobalIndex = globalIndex + 1;
+            } else {
+                // 如果是第一张图片，则不允许继续往前翻页
+                if (globalIndex <= 0) {
+                    return; // 直接返回，不执行翻页
+                }
+                nextGlobalIndex = globalIndex - 1;
+            }
+
+            // 计算新图片所在的页码
+            const newPage = Math.floor(nextGlobalIndex / itemsPerPage) + 1;
+
+            // 计算新图片在新页面中的索引
+            const newStart = (newPage - 1) * itemsPerPage;
+            const newIndexInPage = newStart + (nextGlobalIndex % itemsPerPage);
+
+            // 如果需要切换页面，先切换页面
+            if (newPage !== currentPage) {
+                changePage(newPage);
+
+                // 等待页面渲染完成后再打开模态框
+                setTimeout(() => {
+                    openModal(newIndexInPage);
+                }, 300);
+            } else {
+                // 如果不需要切换页面，直接打开新模态框
+                setTimeout(() => {
+                    openModal(newIndexInPage);
+                }, 300);
+            }
+        }
+
+        // 打开模态框的辅助函数
+        function openModal(modalIndex) {
+            const modal = document.getElementById(`modal-${modalIndex}`);
+            if (modal) {
+                // 模拟点击图片打开模态框
+                const modalTrigger = document.querySelector(`[data-target="#modal-${modalIndex}"]`);
+                if (modalTrigger) {
+                    modalTrigger.click();
+                } else {
+                    // 备用方法：手动打开模态框
+                    modal.classList.add('show');
+                    modal.style.display = 'block';
+                    document.body.classList.add('modal-open');
+
+                    // 创建背景遮罩
+                    const backdrop = document.createElement('div');
+                    backdrop.className = 'modal-backdrop fade show';
+                    document.body.appendChild(backdrop);
+                }
+            }
+        }
+
+        // 添加键盘导航支持
+        document.addEventListener('keydown', function(e) {
+            // 检查是否有模态框打开
+            const openModal = document.querySelector('.modal.show');
+            if (openModal) {
+                const modalId = openModal.id;
+                const currentIndex = parseInt(modalId.split('-')[1]);
+
+                // 左箭头键导航到上一张图片
+                if (e.keyCode === 37) {
+                    e.preventDefault(); // 防止默认行为
+                    navigateImage(currentIndex, 'prev');
+                }
+                // 右箭头键导航到下一张图片
+                else if (e.keyCode === 39) {
+                    e.preventDefault(); // 防止默认行为
+                    navigateImage(currentIndex, 'next');
+                }
+                // ESC键关闭模态框
+                else if (e.keyCode === 27) {
+                    // 使用原生 JavaScript 关闭模态框
+                    const closeButton = openModal.querySelector('.close');
+                    if (closeButton) {
+                        closeButton.click();
+                    } else {
+                        // 备用方法：直接移除模态框的显示类
+                        openModal.classList.remove('show');
+                        openModal.style.display = 'none';
+                        document.body.classList.remove('modal-open');
+                        const modalBackdrops = document.getElementsByClassName('modal-backdrop');
+                        while (modalBackdrops.length > 0) {
+                            modalBackdrops[0].parentNode.removeChild(modalBackdrops[0]);
+                        }
+                    }
+                }
+            }
+        }, { passive: false }); // 设置为非被动模式，允许调用 preventDefault
+
+        // 添加触摸屏幕滑动支持
+        let touchStartX = 0;
+        let touchEndX = 0;
+
+        // 使用事件委托来处理模态框的触摸事件
+        document.addEventListener('touchstart', function(e) {
+            if (e.target.closest('.modal-body')) {
+                touchStartX = e.touches[0].clientX;
+            }
+        }, { passive: true });
+
+        document.addEventListener('touchend', function(e) {
+            if (e.target.closest('.modal-body')) {
+                touchEndX = e.changedTouches[0].clientX;
+
+                // 获取当前打开的模态框
+                const openModal = document.querySelector('.modal.show');
+                if (openModal) {
+                    const modalId = openModal.id;
+                    const currentIndex = parseInt(modalId.split('-')[1]);
+                    handleSwipe(currentIndex);
+                }
+            }
+        }, { passive: true });
+
+        // 增加防止滑动时页面滚动
+        document.addEventListener('touchmove', function(e) {
+            if (e.target.closest('.modal-body') && document.querySelector('.modal.show')) {
+                e.preventDefault();
+            }
+        }, { passive: false });
+
+        // 处理滑动手势
+        function handleSwipe(currentIndex) {
+            const swipeThreshold = 50; // 滑动阈值，超过这个距离才触发导航
+            const swipeDistance = touchEndX - touchStartX;
+
+            // 获取当前页的起始索引
+            const start = (currentPage - 1) * itemsPerPage;
+            // 计算当前图片在所有图片中的索引
+            const globalIndex = currentIndex - start;
+            const totalImages = entries.length;
+
+            if (swipeDistance > swipeThreshold) {
+                // 向右滑动，导航到上一张图片
+                // 如果是第一张图片，则不允许继续往前翻页
+                if (globalIndex > 0) {
+                    navigateImage(currentIndex, 'prev');
+                }
+            } else if (swipeDistance < -swipeThreshold) {
+                // 向左滑动，导航到下一张图片
+                // 如果是最后一张图片，则不允许继续往后翻页
+                if (globalIndex < totalImages - 1) {
+                    navigateImage(currentIndex, 'next');
+                }
+            }
+        }
+
+        // 切换显示文本
+        function toggleText(index) {
+            const textOverlay = document.getElementById(`text-overlay-${index}`);
+            // 使用更通用的选择器，不依赖于特定的类名
+            const button = document.querySelector(`#modal-${index} button[onclick*="toggleText"]`);
+
+            if (!button) {
+                console.error('Toggle button not found');
+                return;
+            }
+
+            // 检查文本是否可见（考虑到初始状态可能是空字符串）
+            const isTextVisible = textOverlay.style.display !== 'none' && textOverlay.style.display !== '';
+
+            if (isTextVisible) {
+                // 如果文本已显示，则隐藏
+                fadeOut(textOverlay, 200);
+                button.innerHTML = '<i class="bi bi-text-paragraph"></i> 显示文本';
+                button.classList.remove('btn-primary');
+                button.classList.add('btn-outline-primary');
+            } else {
+                // 如果文本未显示，则显示
+                fadeIn(textOverlay, 200);
+                button.innerHTML = '<i class="bi bi-image"></i> 显示图片';
+                button.classList.remove('btn-outline-primary');
+                button.classList.add('btn-primary');
+            }
+        }
+
+        // 简单的淡入效果
+        function fadeIn(element, duration) {
+            element.style.opacity = 0;
+            element.style.display = 'block';
+
+            let start = null;
+            function step(timestamp) {
+                if (!start) start = timestamp;
+                const progress = timestamp - start;
+                element.style.opacity = Math.min(progress / duration, 1);
+                if (progress < duration) {
+                    window.requestAnimationFrame(step);
+                }
+            }
+            window.requestAnimationFrame(step);
+        }
+
+        // 简单的淡出效果
+        function fadeOut(element, duration) {
+            element.style.opacity = 1;
+
+            let start = null;
+            function step(timestamp) {
+                if (!start) start = timestamp;
+                const progress = timestamp - start;
+                element.style.opacity = 1 - Math.min(progress / duration, 1);
+                if (progress < duration) {
+                    window.requestAnimationFrame(step);
+                } else {
+                    element.style.display = 'none';
+                }
+            }
+            window.requestAnimationFrame(step);
         }
 
         renderPage(currentPage);

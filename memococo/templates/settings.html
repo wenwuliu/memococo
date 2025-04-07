@@ -36,8 +36,12 @@
       <div class="invalid-feedback">
         Please enter ignored apps.
       </div>
+      <small class="form-text text-muted">输入要忽略的应用程序名称，用逗号分隔</small>
     </div>
-    <button type="submit" class="btn btn-primary">Save</button>
+
+    <!-- 数据清理功能已移除，以确保数据持久保存 -->
+
+    <button type="submit" class="btn btn-primary">保存设置</button>
   </form>
   <div style="margin-top: 20px;align:center">
   <a href="{{ url_for('unbacked_up_folders') }}" class="btn btn-primary">日志文件夹备份</a>

@@ -1,24 +1,28 @@
 from threading import Thread
-from flask import Flask, request, send_from_directory,redirect, url_for,render_template,flash,Response
+from flask import Flask, request, send_from_directory, redirect, url_for, render_template, flash, Response, jsonify
 import sys
 import os
-import json,jsonify
 import datetime
-from multiprocessing import Manager,Event
-from memococo.config import appdata_folder, screenshots_path, app_name_cn, app_version,get_settings,save_settings,logger
-from memococo.database import create_db, get_all_entries, get_timestamps, get_unique_apps,get_ocr_text
-from memococo.ollama import extract_keywords_to_json,query_ollama
+from multiprocessing import Manager, Event
+from memococo.config import appdata_folder, screenshots_path, app_name_cn, app_version, get_settings, save_settings, logger
+from memococo.database import create_db, get_timestamps, get_unique_apps, get_ocr_text, search_entries
+from memococo.ollama import extract_keywords_to_json
 from memococo.screenshot import record_screenshots_thread
-from memococo.utils import human_readable_time, timestamp_to_human_readable,ImageVideoTool,get_folder_paths,count_unique_keywords,check_port,get_unbacked_up_folders,get_total_size
-from memococo.app_map import get_app_names_by_app_codes,get_app_code_by_app_name
+from memococo.utils import human_readable_time, timestamp_to_human_readable, ImageVideoTool, check_port, get_unbacked_up_folders, get_total_size, count_unique_keywords
+from memococo.app_map import get_app_names_by_app_codes, get_app_code_by_app_name
 import time
 
-app = Flask(__name__,static_folder="static",static_url_path="/static")
-
+# 全局变量
+app = Flask(__name__, static_folder="static", static_url_path="/static")
 app.secret_key = 'uuid-14f9a9-4a8c-8e8a-9c4d-9f7b8f7b8f7b'
 
+# 设置Jinja2过滤器
 app.jinja_env.filters["human_readable_time"] = human_readable_time
 app.jinja_env.filters["timestamp_to_human_readable"] = timestamp_to_human_readable
+
+# 创建共享变量
+ignored_apps = None
+ignored_apps_updated = None
 
 def generate_time_nodes(current_timestamps):
     # 定义时间间隔（单位：秒）
@@ -33,7 +37,7 @@ def generate_time_nodes(current_timestamps):
     ]
     # 获取当前时间戳
     now = datetime.datetime.now().timestamp()
-    
+
     # 生成时间节点
     time_nodes = []
     for interval in intervals:
@@ -49,12 +53,12 @@ def generate_time_nodes(current_timestamps):
     time_nodes = time_nodes[-3:]
     return time_nodes
 
-  
+
 @app.before_request
 def load_data():
   global unique_apps
   unique_apps = get_app_names_by_app_codes(get_unique_apps())
-  
+
 @app.route('/favicon.ico')
 def favicon():
     return send_from_directory(os.path.join(app.root_path, 'static'),
@@ -67,8 +71,8 @@ def timeline():
     #todo 增加time_nodes,用于计算合适的时间节点，5分钟前，1小时前，3小时前，6小时前，12小时前，24小时前，3天前，7天前，30天前，90天前，180天前，1年前等。
     time_nodes = generate_time_nodes(timestamps)
     # 使用多线程唤醒ollama服务
-    if get_settings()["use_ollama"] == "True":
-        Thread(target=query_ollama,args=("你好",get_settings()["model"])).start()
+    # if get_settings()["use_ollama"] == "True":
+    #     Thread(target=query_ollama,args=("你好",get_settings()["model"])).start()
     return render_template("index.html",
         timestamps=timestamps,
         time_nodes = time_nodes,
@@ -79,59 +83,96 @@ def timeline():
 
 @app.route("/search")
 def search():
+    """高级搜索功能，支持关键词和应用程序过滤
+
+    修改版本：返回所有搜索结果，不使用分页，以确保前端分页正常工作
+    """
+    # 获取查询参数
     q = request.args.get("q")
-    app = request.args.get("app")
-    print(f"searching for {q} in {app}")
-    app_code = get_app_code_by_app_name(app)
-    # 如果q为空，则返主页
-    if not q and not app:
+    app_name = request.args.get("app")
+
+    logger.info(f"Searching for '{q}' in app '{app_name}'")
+
+    # 如果没有查询参数，返回主页
+    if not q and not app_name:
         return redirect("/")
-    entries = get_all_entries()
-    if not q:
-        # 从entries中筛选所有app字段等于app的条目，count为0
-        sorted_entries = [{"entry": entry, "count": 0} for entry in entries if entry.app == app_code]
-        search_apps = [app]
+
+    # 获取应用程序代码
+    app_code = get_app_code_by_app_name(app_name) if app_name else None
+
+    # 如果只有应用程序过滤，没有关键词
+    if not q and app_code:
+        # 使用search_entries函数直接过滤应用，传入空关键词列表
+        # 使用大的limit值确保获取所有结果
+        entries = search_entries(keywords=[], app=app_code, limit=100000, offset=0)
+        search_apps = [app_name]
         keywords = []
-        # sorted_entries按照entry的timestamp字段降序排列
-        sorted_entries.sort(key=lambda x: x["entry"].timestamp, reverse=True)
-        # 保留最多50条
-        # sorted_entries = sorted_entries[:50]
     else:
+        # 使用Ollama提取关键词
         keywords = []
-        logger.info(f"use ollama: {get_settings()['use_ollama']}")
         if get_settings()["use_ollama"] == "True":
-            keywords = extract_keywords_to_json(q,model= get_settings()["model"])
-        #将keywords从json字符串转为list
-        keywords = keywords if keywords else q.split()
-        sorted_entries = []
-        # 遍历entries列表中的每个条目
-        for entry in entries:
-            # 获取条目的'text'属性，如果属性不存在，则返回空字符串
-            text = getattr(entry, 'text', '') or ''
-            # 如果任何一个关键词在text中，any()函数将返回True
-            if any(keyword in text for keyword in keywords):
-                #将entry的text字段中出现keywords的次数,同一个keyword仅统计一次,统计到数组entries_unique_count中
-                unique_count = count_unique_keywords(text,keywords)
-                if unique_count > 0:
-                    # 将entry的text字段中出现keywords的次数,同一个keyword多次出现算多次,统计到数组entries_count中
-                    unique_count = unique_count*100000
-                    count = sum(text.count(keyword) for keyword in keywords) + unique_count
-                    sorted_entries.append({"entry": entry, "count": count})
-        #如果app不为空，则筛选app字段等于app的条目
-        search_apps = get_app_names_by_app_codes(list(set([entry["entry"].app for entry in sorted_entries])))
-        if app_code:
-            sorted_entries = [entry for entry in sorted_entries if entry["entry"].app == app_code]
-        # 将sorted_entries按count字段降序排列
-        sorted_entries = sorted(sorted_entries, key=lambda x: x["count"], reverse=True)
+            logger.info(f"Using Ollama model: {get_settings()['model']}")
+            extracted_keywords = extract_keywords_to_json(q, model=get_settings()["model"])
+            if extracted_keywords:
+                keywords = extracted_keywords
+
+        # 如果没有提取到关键词，则使用原始查询分词
+        if not keywords:
+            keywords = q.split()
+
+        logger.info(f"Search keywords: {keywords}")
+
+        # 使用search_entries函数进行搜索，使用大的limit值确保获取所有结果
+        entries = search_entries(keywords, app=app_code, limit=100000, offset=0)
+
+        # 如果有关键词，对搜索结果进行排序
+        if keywords:
+            # 创建一个包含排序信息的列表
+            sorted_entries = []
+
+            for entry in entries:
+                # 获取文本内容
+                text = getattr(entry, 'text', '') or ''
+
+                # 计算不重复关键词出现次数
+                unique_count = count_unique_keywords(text, keywords)
+
+                # 计算总关键词出现次数（包括重复）
+                total_count = sum(text.count(keyword) for keyword in keywords)
+
+                # 添加到排序列表
+                sorted_entries.append({
+                    "entry": entry,
+                    "unique_count": unique_count,
+                    "total_count": total_count
+                })
+
+            # 按不重复出现次数（主要）和总出现次数（次要）排序
+            sorted_entries.sort(key=lambda x: (x["unique_count"], x["total_count"]), reverse=True)
+
+            # 提取排序后的条目
+            entries = [item["entry"] for item in sorted_entries]
+
+            # 记录排序信息
+            logger.info(f"Sorted search results by unique keyword matches and total matches")
+
+        # 获取搜索结果中的应用程序
+        app_codes = list(set([entry.app for entry in entries if entry.app]))
+        search_apps = get_app_names_by_app_codes(app_codes)
+
+    # 记录搜索结果数量
+    logger.info(f"Found {len(entries)} results for search query")
+
+    # 渲染搜索结果页面
     return render_template(
         "search.html",
-        entries=[entry["entry"] for entry in sorted_entries],
+        entries=entries,
         keywords=keywords,
         q=q,
-        unique_apps = search_apps,
-        app_name = app_name_cn
+        unique_apps=search_apps,
+        app_name=app_name_cn
     )
-    
+
 
 @app.route("/settings", methods=["GET", "POST"])
 def settings():
@@ -146,17 +187,25 @@ def settings():
         #将local_ignored_apps列表中每个字符串两边的空格去掉
         local_ignored_apps = [app.strip() for app in local_ignored_apps]
         logger.info(local_ignored_apps)
-        
+
+        # 注意：数据清理功能已移除，以确保数据持久保存
+
         # 保存设置
         save_settings({
-                "ocr_tool": ocr_tool,
-                "use_ollama": use_ollama,
-                "model": model,
-                "ignored_apps": local_ignored_apps,
-            })
+            "ocr_tool": ocr_tool,
+            "use_ollama": use_ollama,
+            "model": model,
+            "ignored_apps": local_ignored_apps,
+        })
+
         # 更新ignored_apps
-        ignored_apps[:] = local_ignored_apps
-        ignored_apps_updated.set()
+        global ignored_apps, ignored_apps_updated
+        if ignored_apps is not None and ignored_apps_updated is not None:
+            ignored_apps[:] = local_ignored_apps
+            ignored_apps_updated.set()
+            logger.info("Updated ignored apps list")
+
+        # 注意：手动清理功能已移除，以确保数据持久保存
         # 浮窗提示，保存成功
         flash("设置已保存", "success")
         # 等待两秒后，重定向到 /
@@ -174,7 +223,7 @@ def serve_image(filename):
     #根据时间戳，获取年月日，拼接为文件路径
     year, month, day = datetime.datetime.fromtimestamp(int(timestamp)).strftime('%Y'), datetime.datetime.fromtimestamp(int(timestamp)).strftime('%m'), datetime.datetime.fromtimestamp(int(timestamp)).strftime('%d')
     dir = os.path.join(screenshots_path, year, month, day)
-        
+
     tool = ImageVideoTool(dir)
     if tool.is_backed_up():
         byte_stream = tool.query_image(timestamp)
@@ -193,7 +242,7 @@ def get_ocr_text_by_timestamp(timestamp):
         return ""
     else:
         return data
-    
+
 @app.route("/unbacked_up_folders")
 def unbacked_up_folders():
     folder_info = get_unbacked_up_folders()
@@ -206,7 +255,7 @@ def compress_folder_thread(folder):
     tool = ImageVideoTool(folder)
     # 调用 compress 方法
     tool.images_to_video( sort_by="time")
-    
+
 @app.route("/compress_folder", methods=["POST"])
 def compress_folder():
     # 从请求的 JSON 数据中获取文件夹路径
@@ -231,36 +280,104 @@ def set_cpu_affinity(pid=None, cpu_list=None):
     if pid is None:
         pid = os.getpid()  # 默认操作当前进程
     process = psutil.Process(pid)
-    
+
     if cpu_list is None:
         cpu_list = list(range(psutil.cpu_count()))  # 默认使用所有核心
-    
+
     try:
         process.cpu_affinity(cpu_list)
         print(f"Set CPU affinity for PID {pid} to cores: {cpu_list}")
     except Exception as e:
         print(f"Failed to set CPU affinity: {e}")
 
+# 注意：自动清理功能已移除，以确保数据持久保存
+
+def initialize_app():
+    """初始化应用程序
+
+    初始化数据库、检查端口、启动必要的后台线程
+    """
+    try:
+        # 初始化数据库
+        create_db()
+        logger.info(f"Database initialized successfully")
+
+        # 检查应用数据目录
+        if not os.path.exists(appdata_folder):
+            os.makedirs(appdata_folder)
+            logger.info(f"Created appdata folder: {appdata_folder}")
+        else:
+            logger.info(f"Using existing appdata folder: {appdata_folder}")
+
+        # 检查截图目录
+        if not os.path.exists(screenshots_path):
+            os.makedirs(screenshots_path)
+            logger.info(f"Created screenshots folder: {screenshots_path}")
+
+        # 检查端口可用性
+        if check_port(8842):
+            logger.error("Port 8842 is already in use. Please close the program that is using this port and try again.")
+            return False
+
+        return True
+    except Exception as e:
+        logger.error(f"Error initializing application: {e}")
+        return False
+
+def start_background_threads():
+    """启动必要的后台线程
+
+    启动截图记录线程
+    """
+    try:
+        # 初始化共享变量
+        global ignored_apps, ignored_apps_updated
+        ignored_apps = Manager().list(get_settings().get("ignored_apps", []))
+        ignored_apps_updated = Event()
+        logger.info(f"Initialized shared variables with {len(ignored_apps)} ignored apps")
+
+        # 启动截图记录线程
+        screenshot_thread = Thread(
+            target=record_screenshots_thread,
+            args=(ignored_apps, ignored_apps_updated, True, 3, True),
+            name="ScreenshotThread"
+        )
+        screenshot_thread.daemon = True
+        screenshot_thread.start()
+        logger.info("Screenshot recording thread started")
+
+        # 注意：自动清理功能已移除，以确保数据持久保存
+
+        # 设置CPU亲和性
+        set_cpu_affinity()
+
+        return True
+    except Exception as e:
+        logger.error(f"Error starting background threads: {e}")
+        return False
+
 if __name__ == "__main__":
-    create_db()
+    try:
+        # 显示应用程序信息
+        logger.info(f"Starting {app_name_cn} (MemoCoco) v{app_version}")
 
-    logger.info(f"app version: {app_version}")
+        # 初始化应用
+        if not initialize_app():
+            logger.error("Failed to initialize application. Exiting...")
+            sys.exit(1)
 
-    logger.info(f"Appdata folder: {appdata_folder}")
-    
-    logger.info(f"check port: {check_port(8082)}")
-    
-    #如果8082端口被占用，则提示并退出
-    if check_port(8842):
-        logger.error("Port 8842 is already in use. Please close the program that is using this port and try again.")
+        # 启动后台线程
+        if not start_background_threads():
+            logger.error("Failed to start background threads. Exiting...")
+            sys.exit(1)
+
+        # 启动Flask应用
+        logger.info("Starting web server on port 8842")
+        app.run(port=8842, threaded=True)
+
+    except KeyboardInterrupt:
+        logger.info("Application terminated by user")
+        sys.exit(0)
+    except Exception as e:
+        logger.error(f"Unhandled exception: {e}")
         sys.exit(1)
-
-    ignored_apps = Manager().list(get_settings()["ignored_apps"])
-    ignored_apps_updated = Event()
-    # Start the thread to record screenshots
-    t = Thread(target=record_screenshots_thread,args=(ignored_apps, ignored_apps_updated,True,3,True))
-    t.start()
-
-    set_cpu_affinity()
-
-    app.run(port=8842)

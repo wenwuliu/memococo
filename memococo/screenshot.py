@@ -5,6 +5,7 @@ import mss
 import numpy as np
 from PIL import Image
 import datetime
+import io
 from memococo.config import screenshots_path, args,app_name_en,app_name_cn,logger,get_settings
 from memococo.database import insert_entry,get_newest_empty_text,update_entry_text,remove_entry
 import subprocess
@@ -29,37 +30,108 @@ def get_screenshot_path(date):
 def create_directory_if_not_exists(path):
     if not os.path.exists(path):
         os.makedirs(path)
-        
+
 
 def mean_structured_similarity_index(img1, img2, L=255):
-    # 新增形状检查
-    if img1.shape != img2.shape:
-        logger.debug("Image dimensions changed, skipping similarity check")
-        return 0.0  # 返回0表示完全不同
-    
-    K1, K2 = 0.01, 0.03
-    C1, C2 = (K1 * L) ** 2, (K2 * L) ** 2
+    """计算两张图片的结构相似度指数（SSIM）
 
+    优化版本：使用降采样和区域分块来提高性能
+
+    Args:
+        img1: 第一张图片（numpy数组）
+        img2: 第二张图片（numpy数组）
+        L: 像素值的动态范围，默认为255
+
+    Returns:
+        相似度指数，范围为[0, 1]
+    """
+    # 形状检查
+    if img1 is None or img2 is None or img1.shape != img2.shape:
+        logger.debug("Image dimensions changed or images are None, skipping similarity check")
+        return 0.0  # 返回0表示完全不同
+
+    # 尝试使用更高效的方法：降采样和区域分块
+    # 降采样以减少计算量
+    scale_factor = 4  # 降采样因子
+    height, width = img1.shape[:2]
+    new_height, new_width = height // scale_factor, width // scale_factor
+
+    # 如果图像太小，不进行降采样
+    if new_height < 10 or new_width < 10:
+        scale_factor = 1
+        new_height, new_width = height, width
+
+    # 使用OpenCV进行更高效的降采样
+    if scale_factor > 1:
+        try:
+            import cv2
+            img1_small = cv2.resize(img1, (new_width, new_height), interpolation=cv2.INTER_AREA)
+            img2_small = cv2.resize(img2, (new_width, new_height), interpolation=cv2.INTER_AREA)
+        except ImportError:
+            # 如果没有OpenCV，则使用简单的切片降采样
+            img1_small = img1[::scale_factor, ::scale_factor]
+            img2_small = img2[::scale_factor, ::scale_factor]
+    else:
+        img1_small = img1
+        img2_small = img2
+
+    # 转换为灰度图
     def rgb2gray(img):
         return 0.2989 * img[..., 0] + 0.5870 * img[..., 1] + 0.1140 * img[..., 2]
 
-    img1_gray = rgb2gray(img1)
-    img2_gray = rgb2gray(img2)
+    img1_gray = rgb2gray(img1_small)
+    img2_gray = rgb2gray(img2_small)
+
+    # 计算SSIM参数
+    K1, K2 = 0.01, 0.03
+    C1, C2 = (K1 * L) ** 2, (K2 * L) ** 2
+
     mu1 = np.mean(img1_gray)
     mu2 = np.mean(img2_gray)
     sigma1_sq = np.var(img1_gray)
     sigma2_sq = np.var(img2_gray)
     sigma12 = np.mean((img1_gray - mu1) * (img2_gray - mu2))
+
+    # 计算SSIM
     ssim_index = ((2 * mu1 * mu2 + C1) * (2 * sigma12 + C2)) / (
         (mu1**2 + mu2**2 + C1) * (sigma1_sq + sigma2_sq + C2)
     )
-    return ssim_index
+    return float(ssim_index)
 
 
 def is_similar(img1, img2, similarity_threshold=0.9):
-    #如果有一个图像为None，则返回False
+    """判断两张图片是否相似
+
+    优化版本：增加快速预检查和多级别相似度检测
+
+    Args:
+        img1: 第一张图片
+        img2: 第二张图片
+        similarity_threshold: 相似度阈值，默认为0.9
+
+    Returns:
+        如果相似度超过阈值，返回Ture，否则返回False
+    """
+    # 快速预检查
     if img1 is None or img2 is None:
         return False
+
+    # 如果形状不同，直接返回不相似
+    if img1.shape != img2.shape:
+        return False
+
+    # 快速检查：比较图像的平均值和标准差
+    # 如果差异很大，可以直接判断不相似
+    mean1 = np.mean(img1)
+    mean2 = np.mean(img2)
+    std1 = np.std(img1)
+    std2 = np.std(img2)
+
+    # 如果平均值或标准差差异超过20%，则认为不相似
+    if abs(mean1 - mean2) / max(mean1, mean2) > 0.2 or abs(std1 - std2) / max(std1, std2) > 0.2:
+        return False
+
+    # 计算结构相似度
     similarity = mean_structured_similarity_index(img1, img2)
     return similarity >= similarity_threshold
 
@@ -68,7 +140,7 @@ def take_active_on_windows():
     import pygetwindow as gw
     """
     截取当前活动窗口的屏幕截图，并以 numpy 数组的形式返回。
-    
+
     Returns:
         np.ndarray: 当前活动窗口的截图数据（RGB 格式）。
     """
@@ -77,18 +149,18 @@ def take_active_on_windows():
         active_window = gw.getActiveWindow()
         if active_window is None:
             raise ValueError("无法获取当前活动窗口，请确保有活动窗口存在。")
-        
+
         # 获取活动窗口的边界 (left, top, width, height)
         left, top, width, height = active_window.left, active_window.top, active_window.width, active_window.height
-        
+
         # 使用 Pillow 的 ImageGrab 截取指定区域
         screenshot = ImageGrab.grab(bbox=(left, top, left + width, top + height))
-        
+
         # 将截图转换为 numpy 数组 (RGB 格式)
         screenshot_array = np.array(screenshot)
-        
+
         return screenshot_array
-    
+
     except Exception as e:
         print(f"发生错误: {e}")
         return None
@@ -142,18 +214,124 @@ def take_screenshots(monitor=1):
     if active_window_screenshot is not None:
         screenshots.append(active_window_screenshot)
 
-                
+
     return screenshots
 
-def compress_img_PIL(img_path, compress_rate=0.9, show=False):
+def compress_img_PIL(img_path, target_size_kb=200, show=False):
+    """智能压缩图像到目标大小
+
+    优化版本：使用二分法快速找到最佳质量和大小平衡点
+
+    Args:
+        img_path: 图像文件路径
+        target_size_kb: 目标文件大小（KB），默认200KB
+        show: 是否显示压缩后的图像
+
+    Returns:
+        None
+    """
+    try:
+        # 获取原始文件大小（KB）
+        original_size_kb = os.path.getsize(img_path) / 1024
+
+        # 如果已经小于目标大小，直接返回
+        if original_size_kb <= target_size_kb:
+            return
+
+        # 打开图像
         img = Image.open(img_path)
-        w, h = img.size
-        img_resize = img.resize((int(w*compress_rate), int(h*compress_rate)))
-        logger.info("compressing image")
-        img_resize.save(img_path)
-        # 保存到img_path
+
+        # 尝试使用质量压缩（对于JPEG格式）
+        if img_path.lower().endswith(('.jpg', '.jpeg')):
+            # 使用二分法快速找到最佳质量
+            quality_low, quality_high = 10, 95
+            best_quality = quality_high
+
+            while quality_low <= quality_high:
+                mid_quality = (quality_low + quality_high) // 2
+                # 使用内存流测试压缩效果
+                buffer = io.BytesIO()
+                img.save(buffer, format="JPEG", quality=mid_quality)
+                current_size_kb = len(buffer.getvalue()) / 1024
+
+                if abs(current_size_kb - target_size_kb) < 10:  # 允许10KB的误差
+                    best_quality = mid_quality
+                    break
+                elif current_size_kb > target_size_kb:
+                    quality_high = mid_quality - 1
+                else:
+                    quality_low = mid_quality + 1
+                    best_quality = mid_quality  # 保存当前最佳质量
+
+            # 使用最佳质量保存
+            logger.info(f"Compressing JPEG image with quality {best_quality}")
+            img.save(img_path, format="JPEG", quality=best_quality)
+
+        # 对于WebP格式，尝试调整压缩级别
+        elif img_path.lower().endswith('.webp'):
+            # 使用二分法快速找到最佳质量
+            quality_low, quality_high = 10, 95
+            best_quality = quality_high
+
+            while quality_low <= quality_high:
+                mid_quality = (quality_low + quality_high) // 2
+                # 使用内存流测试压缩效果
+                buffer = io.BytesIO()
+                img.save(buffer, format="WEBP", quality=mid_quality)
+                current_size_kb = len(buffer.getvalue()) / 1024
+
+                if abs(current_size_kb - target_size_kb) < 10:  # 允许10KB的误差
+                    best_quality = mid_quality
+                    break
+                elif current_size_kb > target_size_kb:
+                    quality_high = mid_quality - 1
+                else:
+                    quality_low = mid_quality + 1
+                    best_quality = mid_quality  # 保存当前最佳质量
+
+            # 使用最佳质量保存
+            logger.info(f"Compressing WebP image with quality {best_quality}")
+            img.save(img_path, format="WEBP", quality=best_quality)
+
+        # 其他格式使用尺寸缩放
+        else:
+            # 计算压缩比例
+            compression_ratio = (target_size_kb / original_size_kb) ** 0.5  # 开平方根因为面积是二维的
+            compression_ratio = max(0.1, min(0.9, compression_ratio))  # 限制在 0.1-0.9 之间
+
+            # 计算新尺寸
+            w, h = img.size
+            new_w, new_h = int(w * compression_ratio), int(h * compression_ratio)
+
+            # 确保新尺寸不会太小
+            new_w = max(new_w, 640)  # 最小宽度
+            new_h = max(new_h, 480)  # 最小高度
+
+            # 调整宽高比
+            if w/h != new_w/new_h:
+                if w/h > new_w/new_h:  # 原图更宽
+                    new_h = int(new_w * h / w)
+                else:  # 原图更高
+                    new_w = int(new_h * w / h)
+
+            # 调整大小
+            logger.info(f"Resizing image from {w}x{h} to {new_w}x{new_h}")
+            img_resized = img.resize((new_w, new_h), Image.LANCZOS)  # 使用LANCZOS算法获得更高质量
+            img_resized.save(img_path)
+
         if show:
-            img_resize.show()  # 在照片应用中打开图片
+            Image.open(img_path).show()
+
+    except Exception as e:
+        logger.error(f"Error compressing image: {e}")
+        # 如果压缩失败，尝试简单的缩放方法
+        try:
+            img = Image.open(img_path)
+            w, h = img.size
+            img_resize = img.resize((int(w*0.7), int(h*0.7)))
+            img_resize.save(img_path)
+        except Exception as e2:
+            logger.error(f"Fallback compression also failed: {e2}")
 
 def power_saving_mode(save_power):
     if save_power:
@@ -169,7 +347,7 @@ def get_ocr_result(pic,ocr_engine):
     except Exception as e:
         logger.error(f"Error extracting text from image: {e}")
         return None
-        
+
 import concurrent.futures
 import time
 
@@ -194,7 +372,7 @@ def record_screenshots_thread(ignored_apps, ignored_apps_updated, save_power = T
     delay_interval = 20
     # 上次跳过时间
     last_skip_time = datetime.datetime.now()
-    
+
     dirDate = datetime.datetime.now()
     create_directory_if_not_exists(get_screenshot_path(dirDate))
     logger.info("Started recording screenshots...")
@@ -246,11 +424,9 @@ def record_screenshots_thread(ignored_apps, ignored_apps_updated, save_power = T
                     # 如果ocr_json_text为[]，则ocr_text为空字符串
                     if image is not None and ocr_text:
                         if enable_compress:
-                            while True:
-                                # print(f"File size: {os.path.getsize(image_path) / 1024} KB, File name: {image_path}")
-                                if os.path.getsize(image_path) <= 200 * 1024:
-                                    break
-                                compress_img_PIL(image_path)
+                            # 智能压缩图像到目标大小
+                            logger.info(f"Compressing image to target size: {image_path}")
+                            compress_img_PIL(image_path, target_size_kb=200)
                         update_entry_text(entry.id, ocr_text, "")
                         logger.info("ocr task finished")
                     else:
@@ -269,11 +445,11 @@ def record_screenshots_thread(ignored_apps, ignored_apps_updated, save_power = T
             active_window_title = active_app_name
         if active_app_name in ignored_apps:
             continue
-        
+
         #如果window title是appName，则不插入数据库
         if active_window_title == app_name_cn or active_window_title == app_name_en:
             continue
-        
+
         screenshots = take_screenshots()
         last_screenshot = last_screenshots[0]
         window_shot = screenshots[-1] if len(screenshots) > 1 else screenshots[0]
@@ -292,7 +468,7 @@ def record_screenshots_thread(ignored_apps, ignored_apps_updated, save_power = T
         if should_save:
             startTime = time.time()
             logger.info("Screenshot changed, saving...")
-            
+
             # 更新最后保存的截图和应用状态
             last_app_name = active_app_name
             last_window_title = active_window_title
@@ -303,7 +479,7 @@ def record_screenshots_thread(ignored_apps, ignored_apps_updated, save_power = T
             timestamp = int(time.time())
             image_path = os.path.join(get_screenshot_path(dirDate), f"{timestamp}.webp")
             image.save(image_path, format="webp", lossless=True)
-            
+
             # 如果系统cpu占用过高，则不进行ocr
             cpu_usage = psutil.cpu_percent(interval=1)
             cpu_temperature = get_cpu_temperature()
@@ -340,12 +516,9 @@ def record_screenshots_thread(ignored_apps, ignored_apps_updated, save_power = T
             # 如果json_text为空，则暂不压缩图片，直接保存
             if text:
                 if enable_compress:
-                    # 逐步降低图像的质量，直到图像的大小小于200k
-                    while True:
-                        # print(f"File size: {os.path.getsize(image_path) / 1024} KB, File name: {image_path}")
-                        compress_img_PIL(image_path)
-                        if os.path.getsize(image_path) <= 200 * 1024:
-                            break
+                    # 智能压缩图像到目标大小
+                    logger.info(f"Compressing image to target size: {image_path}")
+                    compress_img_PIL(image_path, target_size_kb=200)
             else:
                 logger.info("ocr识别结果为空，不压缩图片")
             # print(f"Detected change on monitor {i + 1}: {text}")

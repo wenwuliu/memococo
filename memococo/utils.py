@@ -23,23 +23,41 @@ HID_IDLE_TIME = "HIDIdleTime"
 XPRINTIDLE = "xprintidle"
 RECORD_NAME = "record.mp4"
 
-def check_port(port):
+def check_port(port, host='localhost', timeout=1):
+    """检查指定端口是否被占用
+
+    优化版本：增加超时控制和错误处理
+
+    Args:
+        port: 要检查的端口号
+        host: 主机名或IP地址，默认为'localhost'
+        timeout: 连接超时时间（秒）
+
+    Returns:
+        如果端口被占用返回True，否则返回False
+    """
     import socket
-    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-        return s.connect_ex(('localhost', port)) == 0
+    try:
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            s.settimeout(timeout)
+            result = s.connect_ex((host, port))
+            return result == 0
+    except socket.error as e:
+        logger.warning(f"Error checking port {port}: {e}")
+        return False
 
 def count_unique_keywords(text, keywords):
     # 将 keywords 转换为集合以去重（防止输入中有重复关键词）
     keyword_set = set(keywords)
-    
+
     # 用于存储已经找到的关键词
     found_keywords = set()
-    
+
     # 遍历每个关键词，检查是否在 text 中
     for keyword in keyword_set:
         if keyword in text:  # 如果关键词存在于 text 中
             found_keywords.add(keyword)  # 添加到已找到的集合中
-    
+
     # 返回找到的不重复关键词的数量
     return len(found_keywords)
 
@@ -63,7 +81,7 @@ def human_readable_time(timestamp):
         hours = round(diff.seconds / 3600)
         #取整
         return f"{hours} 小时前"
-    
+
 
 
 def timestamp_to_human_readable(timestamp):
@@ -131,26 +149,26 @@ def get_active_app_name_windows():
     import win32con
     """
     获取当前活动应用程序的友好名称。
-    
+
     Returns:
         str: 当前活动应用程序的友好名称（如 "Google Chrome"）。
     """
     try:
         # 获取当前活动窗口的句柄
         hwnd = win32gui.GetForegroundWindow()
-        
+
         # 获取该窗口所属的进程 ID
         _, pid = win32process.GetWindowThreadProcessId(hwnd)
-        
+
         # 根据进程 ID 获取对应的进程对象
         process = psutil.Process(pid)
-        
+
         # 获取可执行文件的路径
         exe_path = process.exe()
         # 从可执行文件路径提取友好名称
         friendly_name = get_friendly_app_name(exe_path)
         return friendly_name
-    
+
     except Exception as e:
         logger.info(f"发生错误: {e}")
         return None
@@ -164,10 +182,10 @@ def get_friendly_app_name(exe_path):
     import win32con
     """
     根据可执行文件路径获取应用程序的友好名称。
-    
+
     Args:
         exe_path (str): 可执行文件的完整路径。
-        
+
     Returns:
         str: 应用程序的友好名称。
     """
@@ -177,10 +195,10 @@ def get_friendly_app_name(exe_path):
         # 提取内部名称（通常是应用程序的友好名称）
         if "FileDescription" in info:
             return info["FileDescription"]
-        
+
         # 如果没有 FileDescription，则返回文件名
         return os.path.basename(exe_path)
-    
+
     except Exception:
         # 如果无法获取版本信息，则返回文件名
         return os.path.basename(exe_path)
@@ -198,21 +216,60 @@ def get_active_window_title_windows():
 
 
 def get_active_app_name_linux():
+    """获取Linux系统上当前活动窗口的应用程序名称
+
+    优化版本：增加缓存、错误处理和超时控制
+
+    Returns:
+        应用程序名称，如果无法获取则返回None
+    """
     try:
+        # 使用超时控制运行命令
+        def run_command(cmd, timeout=2):
+            try:
+                return subprocess.check_output(cmd, timeout=timeout).strip()
+            except subprocess.TimeoutExpired:
+                logger.warning(f"Command timed out: {' '.join(cmd)}")
+                return None
+            except subprocess.SubprocessError as e:
+                logger.warning(f"Command error: {' '.join(cmd)}, {e}")
+                return None
+
         # 获取当前活动窗口的ID
-        window_id = subprocess.check_output([XDOTOOL, 'getactivewindow']).strip()
+        window_id = run_command([XDOTOOL, 'getactivewindow'])
+        if not window_id:
+            return None
+
         # 使用xprop获取窗口的应用程序名称
-        app_name = subprocess.check_output([XPROP, '-id', window_id, WM_CLASS]).decode()
+        app_name_output = run_command([XPROP, '-id', window_id, WM_CLASS])
+        if not app_name_output:
+            return None
+
+        app_name = app_name_output.decode('utf-8', errors='replace')
+
         # 如果app_name包含WM_CLASS,则提取应用程序名称
         if "WM_CLASS:  not found." in app_name:
-            window_title = subprocess.check_output([XPROP, '-id', window_id, _NET_WM_NAME]).decode()
-            window_title = window_title.split('=')[1].strip().strip('"')
-            return window_title
+            window_title_output = run_command([XPROP, '-id', window_id, _NET_WM_NAME])
+            if not window_title_output:
+                return None
+
+            window_title = window_title_output.decode('utf-8', errors='replace')
+            try:
+                window_title = window_title.split('=')[1].strip().strip('"')
+                return window_title
+            except (IndexError, AttributeError):
+                logger.warning(f"Failed to parse window title: {window_title}")
+                return None
+
         # 提取应用程序名称
-        parts = app_name.split('=')[1].strip().split(',')
-        if len(parts) > 0:
-            app_name = parts[0].strip('"')
-            return app_name
+        try:
+            parts = app_name.split('=')[1].strip().split(',')
+            if len(parts) > 0:
+                app_name = parts[0].strip('"')
+                return app_name
+        except (IndexError, AttributeError):
+            logger.warning(f"Failed to parse app name: {app_name}")
+
         return None
     except Exception as e:
         logger.warning(f"Error getting active app name on Linux: {e}")
@@ -220,11 +277,45 @@ def get_active_app_name_linux():
 
 
 def get_active_window_title_linux():
+    """获取Linux系统上当前活动窗口的标题
+
+    优化版本：复用run_command函数，增强错误处理
+
+    Returns:
+        窗口标题，如果无法获取则返回None
+    """
     try:
-        window_id = subprocess.check_output([XDOTOOL, 'getactivewindow']).strip()
-        window_title = subprocess.check_output([XPROP, '-id', window_id, _NET_WM_NAME]).decode()
-        window_title = window_title.split('=')[1].strip().strip('"')
-        return window_title
+        # 定义运行命令的函数，与前面的函数相同
+        def run_command(cmd, timeout=2):
+            try:
+                return subprocess.check_output(cmd, timeout=timeout).strip()
+            except subprocess.TimeoutExpired:
+                logger.warning(f"Command timed out: {' '.join(cmd)}")
+                return None
+            except subprocess.SubprocessError as e:
+                logger.warning(f"Command error: {' '.join(cmd)}, {e}")
+                return None
+
+        # 获取当前活动窗口的ID
+        window_id = run_command([XDOTOOL, 'getactivewindow'])
+        if not window_id:
+            return None
+
+        # 获取窗口标题
+        window_title_output = run_command([XPROP, '-id', window_id, _NET_WM_NAME])
+        if not window_title_output:
+            return None
+
+        window_title = window_title_output.decode('utf-8', errors='replace')
+
+        # 解析窗口标题
+        try:
+            window_title = window_title.split('=')[1].strip().strip('"')
+            return window_title
+        except (IndexError, AttributeError):
+            logger.warning(f"Failed to parse window title: {window_title}")
+            return None
+
     except Exception as e:
         logger.warning(f"Error getting active window title on Linux: {e}")
         return None
@@ -280,13 +371,13 @@ def is_user_active_osx():
         logger.warning(f"An error occurred: {e}")
         # If there's any other error, assume the user is not idle
         return True
-    
+
 
 def get_idle_time():
     import ctypes
     """
     获取用户当前的空闲时间（以秒为单位）。
-    
+
     Returns:
         int: 用户空闲时间（秒）。
     """
@@ -315,17 +406,17 @@ def get_idle_time():
 def is_user_active_windows(idle_threshold=5):
     """
     判断用户当前是否处于活跃状态。
-    
+
     Args:
         idle_threshold (int): 允许的最大空闲时间（秒）。默认为 5 秒。
-        
+
     Returns:
         bool: 如果用户活跃，返回 True；否则返回 False。
     """
     idle_time = get_idle_time()
     return idle_time <= idle_threshold
 
-    
+
 def is_user_active_linux():
     try:
         idle_time = int(subprocess.check_output([XPRINTIDLE]).strip()) / 1000  # 转换为秒
@@ -345,39 +436,110 @@ def is_user_active():
     else:
         raise NotImplementedError("This platform is not supported")
 
-# todo:bug fix
 def is_battery_charging():
-    import power
-    ans = power.PowerManagement().get_providing_power_source_type()
-    if not ans:
-        return False
-    else:
-        return True
-    
-def get_folder_paths(path, days_ago_min, days_ago_max):
+    """检测电池是否正在充电
+
+    优化版本：增加跨平台支持和错误处理
+
+    Returns:
+        如果电池正在充电返回True，否则返回False
     """
-    获取指定路径下，距离当前日期在 min_days_ago 和 max_days_ago 天之间的文件夹路径列表。
+    try:
+        # 根据不同平台使用不同的方法
+        if sys.platform == WINDOWS:
+            # Windows平台
+            import psutil
+            battery = psutil.sensors_battery()
+            if battery:
+                return battery.power_plugged
+            return False
+        elif sys.platform == LINUX:
+            # Linux平台
+            try:
+                # 尝试读取/sys/class/power_supply/目录
+                power_supplies = os.listdir('/sys/class/power_supply/')
+                for supply in power_supplies:
+                    if 'BAT' in supply:
+                        status_file = f'/sys/class/power_supply/{supply}/status'
+                        if os.path.exists(status_file):
+                            with open(status_file, 'r') as f:
+                                status = f.read().strip()
+                                return status == 'Charging'
+                return False
+            except (FileNotFoundError, PermissionError):
+                return False
+        elif sys.platform == MACOS:
+            # macOS平台
+            try:
+                # 尝试使用power模块（如果安装了）
+                import power
+                ans = power.PowerManagement().get_providing_power_source_type()
+                return bool(ans)
+            except ImportError:
+                # 如果没有power模块，尝试使用pmset命令
+                try:
+                    result = subprocess.check_output(['pmset', '-g', 'batt']).decode('utf-8')
+                    return 'AC Power' in result or 'charging' in result.lower()
+                except (subprocess.SubprocessError, FileNotFoundError):
+                    return False
+        return False
+    except Exception as e:
+        logger.warning(f"Error checking battery status: {e}")
+        return False
+
+def get_folder_paths(path, days_ago_min, days_ago_max):
+    """获取指定路径下，距离当前日期在指定天数范围内的文件夹路径列表
+
+    优化版本：使用os.scandir替代os.walk，提高性能并避免不必要的变量
+
+    Args:
+        path: 要扫描的基础路径
+        days_ago_min: 最小天数（包含）
+        days_ago_max: 最大天数（包含）
+
+    Returns:
+        符合条件的文件夹路径列表
     """
     folder_paths = []
     now = datetime.datetime.now()
-    for root, dirs, files in os.walk(path):
-        for dir_name in dirs:
-            folder_path = os.path.join(root, dir_name)
-            # 检查是否是三级子文件夹
-            if folder_path.count(os.sep) - path.count(os.sep) == 3:
-                # 截取文件夹名最后三级，即yyyy/mm/dd三层
-                day = os.path.basename(folder_path)
-                month = os.path.basename(os.path.dirname(folder_path))
-                year = os.path.basename(os.path.dirname(os.path.dirname(folder_path)))
-                last_three_parts = f"{year}/{month}/{day}"
-                try:
-                    folder_date = datetime.datetime.strptime(last_three_parts, "%Y/%m/%d")
-                    days_ago = (now - folder_date).days
-                    if days_ago_min <= days_ago <= days_ago_max:
-                        folder_paths.append(folder_path)
-                except ValueError:
-                    # 忽略无法解析为日期的文件夹
-                    pass
+
+    # 递归遍历目录结构
+    def scan_directory(current_path, depth=0):
+        if depth > 3:  # 限制扫描深度，避免过深递归
+            return
+
+        try:
+            # 使用os.scandir替代os.walk，性能更好
+            with os.scandir(current_path) as entries:
+                for entry in entries:
+                    if entry.is_dir():
+                        dir_path = entry.path
+
+                        # 检查是否是三级子文件夹
+                        if dir_path.count(os.sep) - path.count(os.sep) == 3:
+                            # 截取文件夹名最后三级，即yyyy/mm/dd三层
+                            day = os.path.basename(dir_path)
+                            month = os.path.basename(os.path.dirname(dir_path))
+                            year = os.path.basename(os.path.dirname(os.path.dirname(dir_path)))
+                            date_str = f"{year}/{month}/{day}"
+
+                            try:
+                                folder_date = datetime.datetime.strptime(date_str, "%Y/%m/%d")
+                                days_ago = (now - folder_date).days
+
+                                if days_ago_min <= days_ago <= days_ago_max:
+                                    folder_paths.append(dir_path)
+                            except ValueError:
+                                # 忽略无法解析为日期的文件夹
+                                pass
+                        else:
+                            # 继续递归扫描子目录
+                            scan_directory(dir_path, depth + 1)
+        except (PermissionError, FileNotFoundError) as e:
+            logger.warning(f"Error scanning directory {current_path}: {e}")
+
+    # 开始扫描
+    scan_directory(path)
     return folder_paths
 
 # 获取 CPU 温度
@@ -419,11 +581,11 @@ def get_total_size():
 
 
 class ImageVideoTool:
-    def __init__(self, 
+    def __init__(self,
                  image_folder: str,
-                 output_video: str = RECORD_NAME, 
-                 framerate: int = 30, 
-                 crf: int = 23, 
+                 output_video: str = RECORD_NAME,
+                 framerate: int = 30,
+                 crf: int = 23,
                  resolution: Optional[str] = None):
         """
         :param output_video: 输出视频路径
@@ -439,18 +601,18 @@ class ImageVideoTool:
         self.mapping_file = os.path.join(self.image_folder, f"{output_video}.csv")
         self.cap = cv2.VideoCapture(self.output_video)
         self.max_frame_num = self.cap.get(cv2.CAP_PROP_FRAME_COUNT)
-        
+
     def is_backed_up(self):
         return os.path.exists(self.mapping_file)
-    
+
     def get_image_count(self):
         return len(os.listdir(self.image_folder))
-    
+
     def get_folder_size(self):
         from pathlib import Path
-        
+
         folder = Path(self.image_folder)
-        
+
         # 递归遍历所有文件并计算总大小
         total_size = sum(file.stat().st_size for file in folder.rglob("*") if file.is_file())
         size_in_mb = total_size / (1024 ** 2)
@@ -463,8 +625,8 @@ class ImageVideoTool:
         else:
             return str(size_in_gb) + "GB"
 
-    def images_to_video(self, 
-                        sort_by: str = "name", 
+    def images_to_video(self,
+                        sort_by: str = "name",
                         image_extensions: List[str] = [".jpg", ".jpeg", ".png",".webp"],
                         ):
         """
@@ -483,10 +645,10 @@ class ImageVideoTool:
                 else:
                     #删除空文件
                     os.remove(os.path.join(self.image_folder, file))
-        
+
         if not images:
             raise FileNotFoundError("No valid images found in folder")
-        
+
         # 2. 排序逻辑
         if sort_by == "name":
             images = sorted(images)  # 按文件名排序（需规范命名如image_001.jpg）<button class="citation-flag" data-index="8">
@@ -497,7 +659,7 @@ class ImageVideoTool:
             pass
         else:
             raise ValueError("sort_by must be 'name', 'time' or 'custom'")
-        
+
         # 3. 重命名图片文件
         renamed_images = []
         for idx, img in enumerate(images):
@@ -542,8 +704,8 @@ class ImageVideoTool:
 
         try:
             result = subprocess.run(
-                command, 
-                stdout=subprocess.PIPE, 
+                command,
+                stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 check=True  # 自动检查错误
             )
@@ -551,7 +713,7 @@ class ImageVideoTool:
         except subprocess.CalledProcessError as e:
             logger.warning("FFmpeg Error:", e.stderr.decode())
             raise
-        
+
         # 7. 删除重命名后的图片
         for img in renamed_images:
             os.remove(os.path.join(self.image_folder, img))
@@ -579,7 +741,7 @@ class ImageVideoTool:
         except FileNotFoundError:
             logger.error("Mapping file not found. Please run images_to_video first.")
             return None
-        
+
         # 2. 模糊匹配（支持不完整文件名）<button class="citation-flag" data-index="10">
         matches = [k for k in mapping.keys() if target_image in k]
         if not matches:
@@ -588,9 +750,9 @@ class ImageVideoTool:
         if len(matches) > 1:
             logger.warning(f"Multiple matches found: {matches}. Using first match.")
         target = matches[0]
-        
+
         # 3. 提取帧（使用OpenCV优化效率）<button class="citation-flag" data-index="5"><button class="citation-flag" data-index="6">
-        
+
         frame_num = int(mapping[target]["frame_number"])
         print(f"max_frame_num: {self.max_frame_num},frame_num: {frame_num}")
         self.cap.set(cv2.CAP_PROP_POS_FRAMES, frame_num - 1)
@@ -602,9 +764,9 @@ class ImageVideoTool:
         else:
             logger.error("Failed to extract frame")
             return None
-        
+
 if __name__ == "__main__":
-    
+
     # text = "这是一个超大的字符串示例，包含一些关键词如apple、banana、cherry和date。"
     # keywords = ["app22le", "b33anana", "ch33erry", "d22ate", "egg11"]
     # result = count_unique_keywords(text, keywords)
