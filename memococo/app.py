@@ -356,7 +356,11 @@ def start_background_threads():
         logger.error(f"Error starting background threads: {e}")
         return False
 
-if __name__ == "__main__":
+def main():
+    """主函数，用于启动应用程序
+
+    这个函数会被 setup.py 中的 entry_points 调用
+    """
     try:
         # 显示应用程序信息
         logger.info(f"Starting {app_name_cn} (MemoCoco) v{app_version}")
@@ -381,3 +385,6 @@ if __name__ == "__main__":
     except Exception as e:
         logger.error(f"Unhandled exception: {e}")
         sys.exit(1)
+
+if __name__ == "__main__":
+    main()

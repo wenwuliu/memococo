@@ -8,9 +8,9 @@ long_description = readme_path.read_text(encoding="utf-8")
 
 # 基础依赖包
 install_requires = [
-    "Flask>=3.0.3", 
+    "Flask>=3.0.3",
     "numpy>=1.26.4",
-    "mss>=9.0.1", 
+    "mss>=9.0.1",
     "toml>=0.10.2",
     "pyautogui>=0.9.54",
     "ffmpeg-python>=0.2.0",
@@ -33,7 +33,7 @@ if current_os in OS_DEPENDENCIES:
 
 setup(
     name="MemoCoco",
-    version="2.2.0",
+    version="2.2.1",
     description="MemoCoco - 时间胶囊",
     long_description=long_description,
     long_description_content_type="text/markdown",
@@ -42,11 +42,11 @@ setup(
     packages=find_packages(),
     python_requires=">=3.8",  # 指定Python最低版本要求
     install_requires=install_requires,
-    # entry_points={
-    #     "console_scripts":[
-    #         'memococo=memococo.app:main',
-    #     ],
-    # },
+    entry_points={
+        "console_scripts":[
+            'memococo=memococo.app:main',
+        ],
+    },
     # data_files=[
     #     ('/usr/share/memococo', ['debian/memococo.service']),
     # ],

@@ -6,7 +6,7 @@ import toml
 app_name_cn = "时光胶囊"
 app_name_en = "MemoCoco"
 main_app_name = app_name_en
-app_version = "2.2.0"
+app_version = "2.2.1"
 
 parser = argparse.ArgumentParser(description=main_app_name)
 
@@ -61,7 +61,7 @@ def get_settings():
     if os.path.exists(config_path):
         with open(config_path, "r", encoding="utf-8") as f:
             config = toml.load(f)
-            
+
         return config
     else:
     # 如果配置文件不存在，则使用默认配置生成配置文件，并返回默认配置,default_ignored_apps需要保存为list
@@ -76,7 +76,7 @@ def get_settings():
         with open(config_path, "w", encoding="utf-8") as f:
             toml.dump(config, f)
         return config
-    
+
 def save_settings(config):
     # 将配置保存到appdata_folder中的config.toml文件
     config_path = os.path.join(appdata_folder, "config.toml")
