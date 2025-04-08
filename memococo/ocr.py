@@ -1,22 +1,17 @@
-import requests
-import base64
 from memococo.config import logger
-import json
 import cv2
 import numpy as np
-from typing import List, Optional
-# concurrent.futures 已不再需要，因为超时处理已移至调用者
+from typing import List
 import time
 
 
-def extract_text_from_image(image: np.ndarray, ocr_engine: str = 'trwebocr') -> str:
+def extract_text_from_image(image: np.ndarray) -> str:
     """从图像中提取文本
 
-    优化版本：移除超时处理，由调用者控制超时
+    使用 RapidOCR 进行文本识别
 
     Args:
         image: 要处理的图像（NumPy数组）
-        ocr_engine: 要使用的OCR引擎，默认为'trwebocr'
 
     Returns:
         提取的文本，如果提取失败则返回空字符串
@@ -26,22 +21,14 @@ def extract_text_from_image(image: np.ndarray, ocr_engine: str = 'trwebocr') -> 
         logger.error("Invalid image provided for OCR")
         return ""
 
-    # 直接调用相应的OCR引擎，不设置超时
+    # 直接调用 RapidOCR 引擎
     start_time = time.time()
 
     try:
-        if ocr_engine == 'tesseract':
-            result = tesseract_ocr(image)
-        elif ocr_engine == 'trwebocr':
-            result = trwebocr(image)
-        elif ocr_engine == 'rapidocr':
-            result = rapid_ocr(image)
-        else:
-            logger.error(f'Invalid OCR engine: {ocr_engine}')
-            return ""
+        result = rapid_ocr(image)
 
         elapsed_time = time.time() - start_time
-        logger.info(f"OCR processing completed in {elapsed_time:.2f} seconds using {ocr_engine}")
+        logger.info(f"OCR processing completed in {elapsed_time:.2f} seconds using RapidOCR")
 
         # 处理结果
         if result is None:
@@ -49,18 +36,9 @@ def extract_text_from_image(image: np.ndarray, ocr_engine: str = 'trwebocr') -> 
 
         text = ""
         try:
-            if ocr_engine == 'tesseract':
-                # Tesseract返回的是JSON字符串
-                for item in json.loads(result):
-                    text += item[1]
-            elif ocr_engine == 'trwebocr':
-                # trwebocr返回的是JSON字符串
-                for item in json.loads(result):
-                    text += item[1]
-            elif ocr_engine == 'rapidocr':
-                # rapidocr返回的是列表
-                for item in result:
-                    text += item[1]
+            # rapidocr 返回的是列表
+            for item in result:
+                text += item[1]
         except Exception as e:
             logger.error(f"Error parsing OCR result: {e}")
             return ""
@@ -72,10 +50,11 @@ def extract_text_from_image(image: np.ndarray, ocr_engine: str = 'trwebocr') -> 
         logger.error(f"Error occurred during OCR processing after {elapsed_time:.2f} seconds: {e}")
         return ""
 
+
 def rapid_ocr(image: np.ndarray) -> List:
     """使用RapidOCR进行图像文本提取
 
-    优化版本：增加错误处理、性能监控和日志记录
+    优化版本：增强图像预处理、优化参数配置
 
     Args:
         image: 要处理的图像（NumPy数组）
@@ -94,191 +73,80 @@ def rapid_ocr(image: np.ndarray) -> List:
                 image = cv2.resize(image, (new_w, new_h))
                 logger.info(f"Resized image from {h}x{w} to {new_h}x{new_w} for OCR processing")
 
-            # 可选的图像增强
+            # 图像增强，提高识别率
+            # 对于截图，通常保留原始图像效果更好
+            # 如果识别率低，可以尝试取消下面的注释
             # image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)  # 转为灰度图
             # image = cv2.GaussianBlur(image, (3, 3), 0)  # 高斯模糊减少噪点
 
+        # 导入 RapidOCR
         from rapidocr_onnxruntime import RapidOCR
-        start_time = time.time()
 
-        # 使用RapidOCR进行图像文本提取
+        # 使用RapidOCR进行图像文本提取，使用优化参数
         engine = RapidOCR(params={
-            "Global.lang_det": "ch_server",
+            "Global.lang_det": "ch_server", 
             "Global.lang_rec": "ch_server",
-            # 可以添加其他参数来提高识别率
+            "Global.use_angle_cls": True,  # 启用角度检测，处理旋转文本
+            "Global.use_text_det": True,   # 启用文本检测
+            "Global.use_text_rec": True,   # 启用文本识别
+            "Det.limit_side_len": 960,     # 限制输入图像的最大边长，提高速度
+            "Det.limit_type": "min",       # 缩放类型，保持长宽比
+            "Det.thresh": 0.3,             # 检测置信度阈值，降低可提高速度但可能降低准确率
+            "Rec.rec_batch_num": 6,        # 识别批处理数量，提高并行处理能力
+            "Rec.rec_img_h": 32,           # 识别图像高度
+            "Rec.rec_img_w": 320,          # 识别图像宽度
+            "Cls.cls_batch_num": 6,        # 角度分类批处理数量
+            "Cls.cls_thresh": 0.9,         # 角度分类置信度阈值
         })
 
-        result, _ = engine(image)  # 忽略引擎返回的耗时，使用自己的计时
+        # 执行OCR识别
+        result, _ = engine(image)  # 忽略引擎返回的耗时
 
         return result
     except ImportError as e:
         logger.error(f"RapidOCR not installed or not found: {e}")
+        logger.error("Please install RapidOCR: pip install rapidocr-onnxruntime")
         return []
     except Exception as e:
         logger.error(f"Error in rapid_ocr: {e}")
         return []
 
-def tesseract_ocr(image: np.ndarray) -> str:
-    """使用Tesseract OCR进行图像文本提取
 
-    优化版本：增加错误处理、性能监控和日志记录
-
-    Args:
-        image: 要处理的图像（NumPy数组）
-
-    Returns:
-        JSON格式的识别结果字符串
-    """
-    try:
-        import pytesseract
-        from pytesseract import Output
-
-        start_time = time.time()
-
-        # 图像预处理，提高OCR识别率
-        try:
-            binary_image = image_preprocessing(image)
-        except Exception as e:
-            logger.warning(f"Image preprocessing failed, using original image: {e}")
-            binary_image = image
-
-        # 设置Tesseract配置
-        config = '--oem 3 --psm 6'  # 使用LSTM OCR引擎，假设单个文本块
-
-        # 识别文本
-        out = pytesseract.image_to_data(binary_image, output_type=Output.DICT, lang='chi_sim+eng', config=config)
-
-        # 处理结果
-        result = []
-        num_boxes = len(out['level'])
-        text_count = 0
-
-        for i in range(num_boxes):
-            # 只包含非空文本
-            if out['text'][i].strip():
-                (x, y, w, h) = (out['left'][i], out['top'][i], out['width'][i], out['height'][i])
-                conf = float(out['conf'][i]) if out['conf'][i] != '-1' else 0
-                text = out['text'][i]
-                result.append([[x, y, w, h, conf], text, 1])
-                text_count += 1
-
-        # 记录性能指标
-        elapsed_time = time.time() - start_time
-        logger.info(f"Tesseract OCR processed image in {elapsed_time:.2f}s, found {text_count} text regions")
-
-        # 将result转为json字符串，中文编码为unicode
-        result_json = json.dumps(result, ensure_ascii=False)
-        return result_json
-
-    except ImportError as e:
-        logger.error(f"Tesseract not installed or not found: {e}")
-        return json.dumps([])
-    except Exception as e:
-        logger.error(f"Error in tesseract_ocr: {e}")
-        return json.dumps([])
-
-def trwebocr(image: np.ndarray) -> Optional[str]:
-    """使用trwebocr进行图像文本提取
-
-    优化版本：增加错误处理、超时控制和重试机制
+def preprocess_image(image: np.ndarray) -> np.ndarray:
+    """图像预处理，提高OCR识别率
 
     Args:
-        image: 要处理的图像（NumPy数组）
+        image: 原始图像
 
     Returns:
-        JSON格式的识别结果字符串，如果失败则返回None
+        处理后的图像
     """
-    url = "http://127.0.0.1:8089/api/tr-run/"
-    max_retries = 0  # 最大重试次数
-    timeout = 10  # 超时时间（秒）
+    # 转换为灰度图
+    if len(image.shape) == 3:
+        gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    else:
+        gray = image
 
-    # 图像预处理
-    try:
-        start_time = time.time()
+    # 自适应二值化
+    binary = cv2.adaptiveThreshold(
+        gray, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, 
+        cv2.THRESH_BINARY, 11, 2
+    )
 
-        # 图像压缩，减小传输大小
-        h, w = image.shape[:2]
-        if max(h, w) > 1500:
-            scale = 1500 / max(h, w)
-            new_h, new_w = int(h * scale), int(w * scale)
-            image = cv2.resize(image, (new_w, new_h))
-            logger.info(f"Resized image from {h}x{w} to {new_h}x{new_w} for trwebocr")
+    # 降噪
+    kernel = np.ones((1, 1), np.uint8)
+    processed_image = cv2.morphologyEx(binary, cv2.MORPH_OPEN, kernel)
+    
+    return processed_image
 
-        # 将图像转换为PNG格式的字节流
-        _, buffer = cv2.imencode('.png', image)
-        encoded_string = base64.b64encode(buffer).decode('utf-8')
 
-        # 实现重试机制
-        retries = 0
-        while retries <= max_retries:
-            try:
-                logger.info(f"Sending request to trwebocr (attempt {retries+1}/{max_retries+1})")
-
-                # 发送POST请求并设置超时
-                result = requests.post(
-                    url,
-                    data={"img": encoded_string, 'compress': 0},
-                    timeout=timeout
-                )
-                result.raise_for_status()
-
-                # 解析响应
-                data = result.json()
-                elapsed_time = time.time() - start_time
-
-                if "data" in data and "raw_out" in data["data"]:
-                    text = data["data"]["raw_out"]
-                    text_count = len(text) if isinstance(text, list) else 0
-                    logger.info(f"trwebocr processed image in {elapsed_time:.2f}s, found {text_count} text regions")
-
-                    # 将text转为json字符串，中文编码为unicode
-                    return json.dumps(text, ensure_ascii=False)
-                else:
-                    logger.warning(f"Unexpected response format from trwebocr: {data}")
-                    return None
-
-            except requests.exceptions.Timeout:
-                logger.warning(f"Request to trwebocr timed out after {timeout}s (attempt {retries+1}/{max_retries+1})")
-            except requests.exceptions.RequestException as e:
-                logger.warning(f"Error connecting to trwebocr: {e} (attempt {retries+1}/{max_retries+1})")
-            except Exception as e:
-                logger.warning(f"Unexpected error with trwebocr: {e} (attempt {retries+1}/{max_retries+1})")
-
-            # 增加重试计数并等待一段时间再重试
-            retries += 1
-            if retries <= max_retries:
-                wait_time = 2 ** retries  # 指数退避策略
-                logger.info(f"Waiting {wait_time} seconds before retrying...")
-                time.sleep(wait_time)
-
-        logger.error(f"Failed to connect to trwebocr after {max_retries+1} attempts")
-        return None
-
-    except Exception as e:
-        logger.error(f"Error preparing image for trwebocr: {e}")
-        return None
-
-def image_preprocessing(image):
-    # 图像灰度化
-    gray_image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-    return gray_image
-
-def easy_ocr(image):
-    image = image_preprocessing(image)
-    import easyocr
-    reader = easyocr.Reader(['ch_sim','en'],gpu=True)
-    result = reader.readtext(image,detail=0)
-    # 将result字符串数组转为字符串，按空格分隔
-    result = " ".join(result)
-    return result
-
-# main方法测试
+# 测试代码
 if __name__ == "__main__":
-    import time
+    import mss
+    
     start_time = time.time()
     screenshots = []
-    import mss
-    import numpy as np
+    
     with mss.mss() as sct:
         for monitor in range(len(sct.monitors)):
             logger.info(f"截取第{monitor}个屏幕")
@@ -286,9 +154,10 @@ if __name__ == "__main__":
             screenshot = np.array(sct.grab(monitor_))
             screenshot = screenshot[:, :, [2, 1, 0]]
             screenshots.append(screenshot)
-        response = extract_text_from_image(screenshots[0],ocr_engine='rapid_ocr')
+        
+        response = extract_text_from_image(screenshots[0])
         end_time = time.time()
-        logger.info("seperate")
+        
+        logger.info("OCR 结果:")
         logger.info(response)
-        logger.info(f"耗时：{end_time - start_time}")
-        #将json数组中所有的第二个元素抽取出来，并拼接成字符串
+        logger.info(f"耗时：{end_time - start_time:.2f}秒")

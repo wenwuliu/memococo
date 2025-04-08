@@ -20,16 +20,7 @@
         Please enter a model.
       </div>
     </div>
-    <div class="mb-3">
-      <label for="ocr_tool" class="form-label">OCR Tool</label>
-      <select class="form-control" id="ocr_tool" name="ocr_tool" required>
-        <option value="trwebocr" {% if settings['ocr_tool'] == 'trwebocr' %}selected{% endif %}>trwebocr</option>
-        <option value="rapidocr" {% if settings['ocr_tool'] == 'rapidocr' %}selected{% endif %}>rapidocr</option>
-      </select>
-      <div class="invalid-feedback">
-        Please select an OCR tool.
-      </div>
-    </div>
+    <!-- OCR 工具选择已移除，默认使用 RapidOCR -->
     <div class="mb-3">
       <label for="ignored_apps" class="form-label">Ignored Apps</label>
       <input type="text" class="form-control" id="ignored_apps" name="ignored_apps" value="{{ ', '.join(settings['ignored_apps']) }}" required>

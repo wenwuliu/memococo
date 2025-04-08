@@ -92,11 +92,11 @@ apt-get install -y python3-flask python3-mss python3-toml python3-opencv xprop f
 
 # 安装 Python 依赖
 echo "正在安装 Python 依赖..."
-pip3 install flask numpy mss toml requests jsonify opencv-python
+pip3 install Flask>=3.0.3 numpy>=1.26.4 mss>=9.0.1 toml>=0.10.2 pyautogui>=0.9.54 ffmpeg-python>=0.2.0 requests>=2.32.3 jsonify>=0.5 opencv-python>=4.5.1 pillow>=8.2.0 psutil>=5.8.0
 
-# 尝试安装 rapidocr-onnxruntime（可选）
+# 尝试安装 rapidocr-onnxruntime（必需）
 echo "正在安装 OCR 引擎..."
-pip3 install rapidocr-onnxruntime || echo "警告: 无法安装 rapidocr-onnxruntime。OCR 功能可能受限。"
+pip3 install rapidocr_onnxruntime>=1.2.3 || echo "警告: 无法安装 rapidocr-onnxruntime。OCR 功能将无法使用。"
 
 # 创建数据目录
 echo "正在创建数据目录..."

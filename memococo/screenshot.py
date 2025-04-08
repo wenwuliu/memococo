@@ -340,9 +340,9 @@ def power_saving_mode(save_power):
             return True
     return False
 
-def get_ocr_result(pic,ocr_engine):
+def get_ocr_result(pic):
     try:
-        result = extract_text_from_image(pic,ocr_engine)
+        result = extract_text_from_image(pic)
         return result
     except Exception as e:
         logger.error(f"Error extracting text from image: {e}")
@@ -351,9 +351,9 @@ def get_ocr_result(pic,ocr_engine):
 import concurrent.futures
 import time
 
-def get_ocr_result_with_timeout(pic, ocr_engine, timeout=15):
+def get_ocr_result_with_timeout(pic, timeout=15):
     with concurrent.futures.ThreadPoolExecutor() as executor:
-        future = executor.submit(extract_text_from_image, pic, ocr_engine)
+        future = executor.submit(extract_text_from_image, pic)
         try:
             result = future.result(timeout=timeout)
             return result
@@ -420,7 +420,7 @@ def record_screenshots_thread(ignored_apps, ignored_apps_updated, save_power = T
                         image = Image.open(image_path)
                     # 将图片转为nparray
                     image = np.array(image)
-                    ocr_text = extract_text_from_image(image,ocr_engine = get_settings()['ocr_tool'])
+                    ocr_text = extract_text_from_image(image)
                     # 如果ocr_json_text为[]，则ocr_text为空字符串
                     if image is not None and ocr_text:
                         if enable_compress:
@@ -500,7 +500,7 @@ def record_screenshots_thread(ignored_apps, ignored_apps_updated, save_power = T
             else:
                 delay_time = 0
                 if screenshots[0] is not None:
-                    text = get_ocr_result_with_timeout(screenshots[0],ocr_engine = get_settings()['ocr_tool'])
+                    text = get_ocr_result_with_timeout(screenshots[0])
                     if text:
                         logger.info("screenshot ocr识别完成")
                     else:

@@ -179,7 +179,6 @@ def settings():
     if request.method == "POST":
         # 获取表单数据
         model = request.form.get("model")
-        ocr_tool = request.form.get("ocr_tool")
         use_ollama = request.form.get("use_ollama")
         local_ignored_apps = request.form.getlist("ignored_apps")
         # local_ignored_apps需要转为list,将local_ignored_apps[0]转为list，每个元素以,分割
@@ -192,7 +191,6 @@ def settings():
 
         # 保存设置
         save_settings({
-            "ocr_tool": ocr_tool,
             "use_ollama": use_ollama,
             "model": model,
             "ignored_apps": local_ignored_apps,

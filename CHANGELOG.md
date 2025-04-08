@@ -8,6 +8,9 @@
 - 更新 .gitignore 文件，添加更多应该被忽略的文件和目录
 - 改进安装说明文档
 - 更新 README.md，提供更详细的项目信息和使用说明
+- 移除 trwebocr 和 tesseract OCR，使用 RapidOCR 作为唯一的 OCR 引擎
+- 优化 RapidOCR 参数配置，提高识别速度和准确率
+- 简化设置页面，移除 OCR 工具选择选项
 
 ### 修复
 - 修复搜索功能中的分页问题

@@ -68,7 +68,6 @@ def get_settings():
         print("配置文件不存在，将使用默认配置生成配置文件")
         config_path = os.path.join(appdata_folder, "config.toml")
         config = {
-            "ocr_tool": "rapidocr",
             "use_ollama":False,
             "model": "qwen2.5:3b",
             "ignored_apps": default_ignored_apps,
