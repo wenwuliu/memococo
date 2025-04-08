@@ -4,20 +4,19 @@ from memococo.config import logger
 import json
 import cv2
 import numpy as np
-from typing import List, Dict, Optional, Union
-import concurrent.futures
+from typing import List, Optional
+# concurrent.futures 已不再需要，因为超时处理已移至调用者
 import time
 
 
-def extract_text_from_image(image: np.ndarray, ocr_engine: str = 'trwebocr', timeout: int = 15) -> str:
+def extract_text_from_image(image: np.ndarray, ocr_engine: str = 'trwebocr') -> str:
     """从图像中提取文本
 
-    优化版本：增加超时处理、并行处理和错误恢复
+    优化版本：移除超时处理，由调用者控制超时
 
     Args:
         image: 要处理的图像（NumPy数组）
         ocr_engine: 要使用的OCR引擎，默认为'trwebocr'
-        timeout: 处理超时时间（秒）
 
     Returns:
         提取的文本，如果提取失败则返回空字符串
@@ -27,56 +26,51 @@ def extract_text_from_image(image: np.ndarray, ocr_engine: str = 'trwebocr', tim
         logger.error("Invalid image provided for OCR")
         return ""
 
-    # 使用线程池并设置超时
-    with concurrent.futures.ThreadPoolExecutor() as executor:
-        # 根据选择的OCR引擎提交任务
+    # 直接调用相应的OCR引擎，不设置超时
+    start_time = time.time()
+
+    try:
         if ocr_engine == 'tesseract':
-            future = executor.submit(tesseract_ocr, image)
+            result = tesseract_ocr(image)
         elif ocr_engine == 'trwebocr':
-            future = executor.submit(trwebocr, image)
+            result = trwebocr(image)
         elif ocr_engine == 'rapidocr':
-            future = executor.submit(rapid_ocr, image)
+            result = rapid_ocr(image)
         else:
             logger.error(f'Invalid OCR engine: {ocr_engine}')
             return ""
 
+        elapsed_time = time.time() - start_time
+        logger.info(f"OCR processing completed in {elapsed_time:.2f} seconds using {ocr_engine}")
+
+        # 处理结果
+        if result is None:
+            return ""
+
+        text = ""
         try:
-            # 等待结果，并设置超时
-            start_time = time.time()
-            result = future.result(timeout=timeout)
-            elapsed_time = time.time() - start_time
-            logger.info(f"OCR processing completed in {elapsed_time:.2f} seconds using {ocr_engine}")
-
-            # 处理结果
-            if result is None:
-                return ""
-
-            text = ""
-            try:
-                if ocr_engine == 'tesseract':
-                    # Tesseract返回的是JSON字符串
-                    for item in json.loads(result):
-                        text += item[1]
-                elif ocr_engine == 'trwebocr':
-                    # trwebocr返回的是JSON字符串
-                    for item in json.loads(result):
-                        text += item[1]
-                elif ocr_engine == 'rapidocr':
-                    # rapidocr返回的是列表
-                    for item in result:
-                        text += item[1]
-            except Exception as e:
-                logger.error(f"Error parsing OCR result: {e}")
-                return ""
-
-            return text
-
-        except concurrent.futures.TimeoutError:
-            logger.error(f"OCR processing timed out after {timeout} seconds")
-            return ""
+            if ocr_engine == 'tesseract':
+                # Tesseract返回的是JSON字符串
+                for item in json.loads(result):
+                    text += item[1]
+            elif ocr_engine == 'trwebocr':
+                # trwebocr返回的是JSON字符串
+                for item in json.loads(result):
+                    text += item[1]
+            elif ocr_engine == 'rapidocr':
+                # rapidocr返回的是列表
+                for item in result:
+                    text += item[1]
         except Exception as e:
-            logger.error(f"Error occurred during OCR processing: {e}")
+            logger.error(f"Error parsing OCR result: {e}")
             return ""
+
+        return text
+
+    except Exception as e:
+        elapsed_time = time.time() - start_time
+        logger.error(f"Error occurred during OCR processing after {elapsed_time:.2f} seconds: {e}")
+        return ""
 
 def rapid_ocr(image: np.ndarray) -> List:
     """使用RapidOCR进行图像文本提取
@@ -114,12 +108,7 @@ def rapid_ocr(image: np.ndarray) -> List:
             # 可以添加其他参数来提高识别率
         })
 
-        result, elapse_time = engine(image)
-        elapsed_time = time.time() - start_time
-
-        # 记录性能指标
-        recognized_count = len(result) if result else 0
-        logger.info(f"RapidOCR processed image in {elapsed_time:.2f}s, found {recognized_count} text regions")
+        result, _ = engine(image)  # 忽略引擎返回的耗时，使用自己的计时
 
         return result
     except ImportError as e:

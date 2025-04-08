@@ -351,14 +351,14 @@ def get_ocr_result(pic,ocr_engine):
 import concurrent.futures
 import time
 
-def get_ocr_result_with_timeout(pic, ocr_engine, timeout=12):
+def get_ocr_result_with_timeout(pic, ocr_engine, timeout=15):
     with concurrent.futures.ThreadPoolExecutor() as executor:
         future = executor.submit(extract_text_from_image, pic, ocr_engine)
         try:
             result = future.result(timeout=timeout)
             return result
         except concurrent.futures.TimeoutError:
-            logger.info("OCR执行超时(>12秒)")
+            logger.info(f"OCR执行超时(>{timeout}秒)")
             return None
 
 def record_screenshots_thread(ignored_apps, ignored_apps_updated, save_power = True,idle_time = 4,enable_compress = True):
