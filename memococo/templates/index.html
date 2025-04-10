@@ -52,13 +52,15 @@
             </div>
         </div>
     </div>
+    <div class="slider-wrapper position-relative">
       <div id="timeNodes">
         {% for node in time_nodes %}
-          <div class="time-node" style="left: {{ (1 - timestamps.index(node.timestamp) / (timestamps|length - 1)) * 0.578125 * 100 + 21.09375 }}%;">{{ node.desc }}</div>
+          <div class="time-node" data-timestamp="{{ node.timestamp }}">{{ node.desc }}</div>
         {% endfor %}
       </div>
       <input type="range" class="slider custom-range" id="discreteSlider" min="0" max="{{timestamps|length - 1}}" step="1" value="{{timestamps|length - 1}}">
       <div class="slider-value" id="sliderValue">{{timestamps[0] | timestamp_to_human_readable }}</div>
+    </div>
     </div>
     <div class="image-container" id="image-container">
       <img id="timestampImage" src="/pictures/{{timestamps[0]}}.webp" alt="Image for timestamp">
@@ -70,12 +72,46 @@
     const slider = document.getElementById('discreteSlider');
     const sliderValue = document.getElementById('sliderValue');
     const timestampImage = document.getElementById('timestampImage');
+    const timeNodes = document.querySelectorAll('.time-node');
     let imgWidth = 0;
     let imgHeight = 0;
+
+    // 函数：计算并更新时间节点的位置
+    function updateTimeNodePositions() {
+        // 获取滑块包装器的位置和尺寸
+        const sliderWrapper = document.querySelector('.slider-wrapper');
+        const timeNodesContainer = document.getElementById('timeNodes');
+
+        // 确保时间节点容器在滑块包装器内部
+        if (timeNodesContainer.parentElement !== sliderWrapper) {
+            console.log('Adjusting timeNodes container position');
+        }
+
+        // 计算相对于 timeNodes 容器的位置
+        const containerWidth = timeNodesContainer.offsetWidth;
+
+        timeNodes.forEach(node => {
+            const timestamp = parseInt(node.dataset.timestamp);
+            const timestampIndex = timestamps.indexOf(timestamp);
+
+            if (timestampIndex !== -1) {
+                // 计算该时间戳在滑块上的位置百分比
+                const sliderPosition = (timestamps.length - 1 - timestampIndex) / (timestamps.length - 1);
+
+                // 设置节点的位置（使用百分比）
+                node.style.left = `${sliderPosition * 100}%`;
+                node.style.position = 'absolute';
+
+                // 确保节点文本可见
+                node.style.opacity = '1';
+                node.style.visibility = 'visible';
+            }
+        });
+    }
     // 从后台接口获取数据
     async function fetchData(timestamp) {
         try {
-            const response = await fetch('http://127.0.0.1:8082/get_ocr_text/' + timestamp);
+            const response = await fetch('/get_ocr_text/' + timestamp);
             if (!response.ok) {
                 throw new Error('网络响应错误');
             }
@@ -86,7 +122,7 @@
             return [];
         }
     }
-    
+
     function debounce(func, wait) {
         let timeout;
         return function() {
@@ -137,30 +173,24 @@
                     setTimeout(() => {
                         toast.hide();
                     })
-                    
+
                 });
                 // 将元素添加到页面中
                 container.appendChild(highlight);
                 container.appendChild(textLabel);
         })
     }
-    
-    //timestampImage.onload = (function() {
-    //    let isOnloadCalled = false;
-    //    return function() {
-    //    const reversedIndex = timestamps.length - 1 - slider.value;
-    //    const timestamp = timestamps[reversedIndex];
-    //    imgWidth = timestampImage.naturalWidth;
-    //    imgHeight = timestampImage.naturalHeight;
-    //    if (!isOnloadCalled) {
-    //        isOnloadCalled = true;
-    //        setTimeout(() => {
-    //            updateText(timestamp);
-    //            isOnloadCalled = false;
-    //        }, 1000); // 延时1秒执行
-    //    }
-    //    }
-    //})();
+
+    timestampImage.onload = function() {
+        const reversedIndex = timestamps.length - 1 - slider.value;
+        const timestamp = timestamps[reversedIndex];
+        imgWidth = timestampImage.naturalWidth;
+        imgHeight = timestampImage.naturalHeight;
+        // 延时执行，确保图片完全加载
+        setTimeout(() => {
+            updateText(timestamp);
+        }, 500);
+    };
     var timeoutId;
     var timeoutId1;
 
@@ -178,13 +208,68 @@
       //设置新的定时器
       timeoutId = setTimeout(() => {
         timestampImage.src = `/pictures/${timestamp}.webp`;
+        // 更新时间节点位置
+        updateTimeNodePositions();
       }, 200);
     });
 
-    // Initialize the slider with a default value
+    // Initialize the slider with a default value (most recent timestamp)
     slider.value = timestamps.length - 1;
-    sliderValue.textContent = new Date(timestamps[0] * 1000).toLocaleString();  // Convert to human-readable format
-    timestampImage.src = `/pictures/${timestamps[0]}.webp`;
+    const initialIndex = 0; // 最新的时间戳索引
+    const initialTimestamp = timestamps[initialIndex];
+    sliderValue.textContent = new Date(initialTimestamp * 1000).toLocaleString();  // Convert to human-readable format
+    timestampImage.src = `/pictures/${initialTimestamp}.webp`;
+
+    // 页面加载完成后计算时间节点位置并添加点击事件
+    function initTimeNodes() {
+        // 确保所有时间节点文本可见
+        timeNodes.forEach(node => {
+            node.style.opacity = '1';
+            node.style.visibility = 'visible';
+            node.style.display = 'block';
+        });
+
+        // 计算时间节点位置
+        updateTimeNodePositions();
+
+        // 为每个时间节点添加点击事件
+        timeNodes.forEach(node => {
+            node.addEventListener('click', function() {
+                const timestamp = parseInt(this.dataset.timestamp);
+                const timestampIndex = timestamps.indexOf(timestamp);
+
+                if (timestampIndex !== -1) {
+                    // 计算滑块的新值
+                    const newSliderValue = timestamps.length - 1 - timestampIndex;
+
+                    // 设置滑块值
+                    slider.value = newSliderValue;
+
+                    // 更新时间显示
+                    sliderValue.textContent = new Date(timestamp * 1000).toLocaleString();
+
+                    // 加载图片
+                    timestampImage.src = `/pictures/${timestamp}.webp`;
+                }
+            });
+        });
+    }
+
+    // 页面加载完成后初始化时间节点
+    document.addEventListener('DOMContentLoaded', function() {
+        // 等待一小段时间确保所有元素都已渲染
+        setTimeout(initTimeNodes, 100);
+    });
+
+    // 确保在页面完全加载后也调用一次
+    window.addEventListener('load', initTimeNodes);
+
+    // 窗口大小变化时重新计算时间节点位置
+    window.addEventListener('resize', function() {
+        // 使用防抖动函数减少计算次数
+        clearTimeout(window.resizeTimeout);
+        window.resizeTimeout = setTimeout(updateTimeNodePositions, 200);
+    });
 
     // Add mouse wheel event listener to the slider
     let isMouseOverSlider = false;
@@ -214,6 +299,8 @@
         //设置新的定时器
         timeoutId1 = setTimeout(() => {
           timestampImage.src = `/pictures/${timestamp}.webp`;
+          // 更新时间节点位置
+          updateTimeNodePositions();
         }, 200);
     });
 
@@ -222,24 +309,39 @@
       const appList = document.getElementById('app-list');
       const apps = appList.children;
       const button = document.getElementById('toggle-apps');
+      const maxVisibleApps = Math.min(15, apps.length); // 最多显示15个，或者全部（如果少于15个）
+
       if (button.textContent === '展开') {
+          // 展开所有应用
           for (let i = 0; i < apps.length; i++) {
               apps[i].style.display = 'inline';
           }
           button.textContent = '折叠';
       } else {
-          for (let i = 15; i < apps.length; i++) {
-              apps[i].style.display = 'none';
+          // 只显示指定数量的应用
+          for (let i = 0; i < apps.length; i++) {
+              if (i < maxVisibleApps) {
+                  apps[i].style.display = 'inline';
+              } else {
+                  apps[i].style.display = 'none';
+              }
           }
           button.textContent = '展开';
       }
   });
 
-    // 默认隐藏15个之后的app
+    // 默认隐藏超过指定数量的应用
     const appList = document.getElementById('app-list');
     const apps = appList.children;
-    for (let i = 15; i < apps.length; i++) {
-        apps[i].style.display = 'none';
+    const maxVisibleApps = Math.min(15, apps.length);
+
+    // 只有当应用数量超过15个时才需要隐藏和显示展开按钮
+    if (apps.length <= maxVisibleApps) {
+        document.getElementById('toggle-apps').style.display = 'none';
+    } else {
+        for (let i = maxVisibleApps; i < apps.length; i++) {
+            apps[i].style.display = 'none';
+        }
     }
   </script>
 {% else %}

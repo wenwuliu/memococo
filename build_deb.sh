@@ -4,7 +4,7 @@
 # 日期: 2024-04-08
 
 # 设置版本号
-VERSION="2.2.1"
+VERSION="2.2.2"
 PACKAGE_NAME="memococo"
 
 # 显示欢迎信息

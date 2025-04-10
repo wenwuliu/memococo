@@ -6,17 +6,15 @@ import numpy as np
 from PIL import Image
 import datetime
 import io
-from memococo.config import screenshots_path, args,app_name_en,app_name_cn,logger,get_settings
-from memococo.database import insert_entry,get_newest_empty_text,update_entry_text,remove_entry
+from memococo.config import screenshots_path, args,app_name_en,app_name_cn,screenshot_logger
+from memococo.database import insert_entry,get_empty_text_count
 import subprocess
-from memococo.ocr import extract_text_from_image
 import pyautogui
 import psutil
 from memococo.utils import (
     get_active_app_name,
     get_active_window_title,
     is_user_active,
-    ImageVideoTool,
     get_cpu_temperature
 )
 
@@ -47,7 +45,7 @@ def mean_structured_similarity_index(img1, img2, L=255):
     """
     # 形状检查
     if img1 is None or img2 is None or img1.shape != img2.shape:
-        logger.debug("Image dimensions changed or images are None, skipping similarity check")
+        screenshot_logger.debug("Image dimensions changed or images are None, skipping similarity check")
         return 0.0  # 返回0表示完全不同
 
     # 尝试使用更高效的方法：降采样和区域分块
@@ -177,7 +175,7 @@ def take_active_on_linux():
         screenshot = pyautogui.screenshot(region=(x, y, width, height))
         return np.array(screenshot)
     except Exception as e:
-        logger.error(f"Error taking screenshot of active window: {e}")
+        screenshot_logger.error(f"Error taking screenshot of active window: {e}")
     return None
 
 def take_active_window_screenshot():
@@ -264,7 +262,7 @@ def compress_img_PIL(img_path, target_size_kb=200, show=False):
                     best_quality = mid_quality  # 保存当前最佳质量
 
             # 使用最佳质量保存
-            logger.info(f"Compressing JPEG image with quality {best_quality}")
+            screenshot_logger.debug(f"Compressing JPEG image with quality {best_quality}")
             img.save(img_path, format="JPEG", quality=best_quality)
 
         # 对于WebP格式，尝试调整压缩级别
@@ -290,7 +288,7 @@ def compress_img_PIL(img_path, target_size_kb=200, show=False):
                     best_quality = mid_quality  # 保存当前最佳质量
 
             # 使用最佳质量保存
-            logger.info(f"Compressing WebP image with quality {best_quality}")
+            screenshot_logger.debug(f"Compressing WebP image with quality {best_quality}")
             img.save(img_path, format="WEBP", quality=best_quality)
 
         # 其他格式使用尺寸缩放
@@ -315,7 +313,7 @@ def compress_img_PIL(img_path, target_size_kb=200, show=False):
                     new_w = int(new_h * w / h)
 
             # 调整大小
-            logger.info(f"Resizing image from {w}x{h} to {new_w}x{new_h}")
+            screenshot_logger.debug(f"Resizing image from {w}x{h} to {new_w}x{new_h}")
             img_resized = img.resize((new_w, new_h), Image.LANCZOS)  # 使用LANCZOS算法获得更高质量
             img_resized.save(img_path)
 
@@ -323,7 +321,7 @@ def compress_img_PIL(img_path, target_size_kb=200, show=False):
             Image.open(img_path).show()
 
     except Exception as e:
-        logger.error(f"Error compressing image: {e}")
+        screenshot_logger.error(f"Error compressing image: {e}")
         # 如果压缩失败，尝试简单的缩放方法
         try:
             img = Image.open(img_path)
@@ -331,7 +329,7 @@ def compress_img_PIL(img_path, target_size_kb=200, show=False):
             img_resize = img.resize((int(w*0.7), int(h*0.7)))
             img_resize.save(img_path)
         except Exception as e2:
-            logger.error(f"Fallback compression also failed: {e2}")
+            screenshot_logger.error(f"Fallback compression also failed: {e2}")
 
 def power_saving_mode(save_power):
     if save_power:
@@ -340,103 +338,71 @@ def power_saving_mode(save_power):
             return True
     return False
 
-def get_ocr_result(pic):
-    try:
-        result = extract_text_from_image(pic)
-        return result
-    except Exception as e:
-        logger.error(f"Error extracting text from image: {e}")
-        return None
+# OCR相关代码已移至ocr_processor.py
 
-import concurrent.futures
 import time
+import multiprocessing
 
-def get_ocr_result_with_timeout(pic, timeout=15):
-    with concurrent.futures.ThreadPoolExecutor() as executor:
-        future = executor.submit(extract_text_from_image, pic)
-        try:
-            result = future.result(timeout=timeout)
-            return result
-        except concurrent.futures.TimeoutError:
-            logger.info(f"OCR执行超时(>{timeout}秒)")
-            return None
+# 获取CPU核心数，用于参考
+_cpu_count = multiprocessing.cpu_count()
 
-def record_screenshots_thread(ignored_apps, ignored_apps_updated, save_power = True,idle_time = 4,enable_compress = True):
+def record_screenshots_thread(ignored_apps, ignored_apps_updated, save_power=True, idle_time=5, enable_compress=True):
+    """截图主线程，负责截图、压缩图片和保存数据到数据库
+
+    完全分离了OCR处理，只负责截图和保存基本数据到数据库
+    OCR处理由独立的OCR线程负责
+
+
+    Args:
+        ignored_apps: 要忽略的应用程序列表
+        ignored_apps_updated: 忽略应用程序列表更新事件
+        save_power: 是否启用省电模式
+        idle_time: 空闲时间（秒）
+        enable_compress: 是否启用图像压缩
+    """
     # 新增变量记录上次应用状态
     last_app_name = None
     last_window_title = None
     last_window_shot = None
-    # 延迟次数
-    delay_time = 0
-    # 延迟时间
-    delay_interval = 20
-    # 上次跳过时间
-    last_skip_time = datetime.datetime.now()
+
+    # 动态调整截图间隔
+    base_interval = idle_time
+    current_interval = base_interval
+    max_interval = base_interval * 4  # 最大间隔时间
+    last_adjustment = time.time()
 
     dirDate = datetime.datetime.now()
     create_directory_if_not_exists(get_screenshot_path(dirDate))
-    logger.info("Started recording screenshots...")
+    screenshot_logger.info("Screenshot recording started")
     last_screenshots = take_screenshots()
     user_inactive_logged = False  # 添加标志位记录上一次用户是否处于非活动状态
-    last_user_active_time = datetime.datetime.now()  # 添加变量记录上一次用户活动时间
     default_idle_time = idle_time
-    # 间隔时间为4秒
+    # 间隔时间为5秒
     while True:
-        time.sleep(idle_time)
+        pending_ocr_count = get_empty_text_count()
+
+        # 根据待处理数量动态调整间隔
+        if pending_ocr_count > 200 and last_adjustment + 60 < time.time():
+            current_interval = min(current_interval * 1.5, max_interval)
+            last_adjustment = time.time()
+            screenshot_logger.debug(f"Adjusting interval to {current_interval} seconds")
+        elif pending_ocr_count < 50 and last_adjustment + 60 < time.time():
+            current_interval = max(base_interval, current_interval / 1.2)
+            last_adjustment = time.time()
+            screenshot_logger.debug(f"Adjusting interval to {current_interval} seconds")
+
+        time.sleep(current_interval)
         if ignored_apps_updated.is_set():
             ignored_apps_updated.clear()
-            logger.info(f"Updated ignored_apps: {ignored_apps}")
+            screenshot_logger.debug(f"Updated ignored_apps: {ignored_apps}")
         if not is_user_active():
             if not user_inactive_logged:
-                logger.info("User is inactive, sleeping...")
-                idle_time = 3
+                screenshot_logger.debug("User is inactive, sleeping...")
                 user_inactive_logged = True
-            #如果距离上次用户活动时间超过3分钟，则开始OCR任务
-            if (datetime.datetime.now() - last_user_active_time).total_seconds() > 30:
-                cpu_usage = psutil.cpu_percent(interval=1)
-                cpu_temperature = get_cpu_temperature()
-                # logger.info(f"cpu占用：{cpu_usage}%，当前温度：{cpu_temperature}°C")
-                # 如果cpu占用率大于70%或者温度高于70度，则增加idle_time来避免高温降频
-                if cpu_usage > 70 or ( cpu_temperature is not None and cpu_temperature > 75 ):
-                    logger.info(f"cpu占用率过高，当前idle_time为{idle_time}")
-                    idle_time += 1
-                # 如果处于省电模式，则跳过OCR任务
-                if power_saving_mode(save_power):
-                    continue
-                entry = get_newest_empty_text()
-                if entry:
-                    logger.info(f"Processing entry: {entry}")
-                    # 将entry.timestamp转换为datetime对象
-                    screenshot_path = get_screenshot_path(datetime.datetime.fromtimestamp(entry.timestamp))
-                    tool = ImageVideoTool(screenshot_path)
-                    if tool.is_backed_up():
-                        logger.info("images have been backed up")
-                        image_stream = tool.query_image(str(entry.timestamp))
-                        # 使用 PIL 的 Image 类将字节流读取为图像对象
-                        image = Image.open(image_stream)
-                    else:
-                        logger.info("images have not been backed up")
-                        image_path = os.path.join(screenshot_path, f"{entry.timestamp}.webp")
-                        image = Image.open(image_path)
-                    # 将图片转为nparray
-                    image = np.array(image)
-                    ocr_text = extract_text_from_image(image)
-                    # 如果ocr_json_text为[]，则ocr_text为空字符串
-                    if image is not None and ocr_text:
-                        if enable_compress:
-                            # 智能压缩图像到目标大小
-                            logger.info(f"Compressing image to target size: {image_path}")
-                            compress_img_PIL(image_path, target_size_kb=200)
-                        update_entry_text(entry.id, ocr_text, "")
-                        logger.info("ocr task finished")
-                    else:
-                        logger.info("Image is None")
-                        remove_entry(entry.id)
             continue
         else:
             user_inactive_logged = False
             idle_time = default_idle_time
-            last_user_active_time = datetime.datetime.now()  # 更新用户活动时间
         active_app_name = get_active_app_name()
         active_window_title = get_active_window_title()
 
@@ -467,65 +433,40 @@ def record_screenshots_thread(ignored_apps, ignored_apps_updated, save_power = T
                 should_save = True
         if should_save:
             startTime = time.time()
-            logger.info("Screenshot changed, saving...")
+            screenshot_logger.debug("Screenshot changed, saving...")
 
             # 更新最后保存的截图和应用状态
             last_app_name = active_app_name
             last_window_title = active_window_title
             last_window_shot = window_shot.copy() if window_shot is not None else None
 
-            # 保存完整截图和windows的OCR
+            # 保存完整截图
             image = Image.fromarray(screenshots[0])
             timestamp = int(time.time())
             image_path = os.path.join(get_screenshot_path(dirDate), f"{timestamp}.webp")
             image.save(image_path, format="webp", lossless=True)
 
-            # 如果系统cpu占用过高，则不进行ocr
+            # 检查CPU使用率和温度
             cpu_usage = psutil.cpu_percent(interval=1)
             cpu_temperature = get_cpu_temperature()
-            # 计算当前时间和上次时间last_skip_time相隔多少秒
-            if delay_time > 0 and (int((datetime.datetime.now() - last_skip_time).total_seconds())) < delay_interval:
-                delay_time -= 1
-                logger.info(f'暂停ocr，剩余等待次数：{delay_time}')
-                text = ""
-            elif cpu_usage > 70 or ( cpu_temperature is not None and cpu_temperature > 75 ):
-                logger.info(f"CPU占用过高，不进行ocr，当前cpu占用：{cpu_usage}%，当前温度：{cpu_temperature}°C")
-                delay_time = 2
-                last_skip_time = datetime.datetime.now()
-                text = ""
-            elif power_saving_mode(save_power):
-                delay_time = 0
-                logger.info(f"省电模式开启，不进行ocr")
-                text = ""
-            else:
-                delay_time = 0
-                if screenshots[0] is not None:
-                    text = get_ocr_result_with_timeout(screenshots[0])
-                    if text:
-                        logger.info("screenshot ocr识别完成")
-                    else:
-                        delay_time = 2
-                        last_skip_time = datetime.datetime.now()
-                else:
-                    text = ""
-                    logger.info("ocr识别失败，不存在截图")
+
+            # 如果启用压缩，先同步压缩图像，再保存到数据库
+            if enable_compress and not power_saving_mode(save_power) and cpu_usage < 70 and (cpu_temperature is None or cpu_temperature < 75):
+                screenshot_logger.debug(f"开始压缩图像: {image_path}")
+                compress_start_time = time.time()
+                compress_img_PIL(image_path, target_size_kb=200)
+                compress_end_time = time.time()
+                screenshot_logger.debug(f"图像压缩完成: {image_path}, 耗时: {compress_end_time - compress_start_time:.2f}秒")
+
+            # 压缩完成后，将数据插入数据库，使用空文本（OCR将由独立线程处理）
+            insert_entry("", timestamp, "", active_app_name, active_window_title)
+
             # 如果当前的年月日和dirDate不同，则创建新的目录
             if dirDate != datetime.datetime.now().date():
                 dirDate = datetime.datetime.now()
                 create_directory_if_not_exists(get_screenshot_path(dirDate))
-            # 如果json_text为空，则暂不压缩图片，直接保存
-            if text:
-                if enable_compress:
-                    # 智能压缩图像到目标大小
-                    logger.info(f"Compressing image to target size: {image_path}")
-                    compress_img_PIL(image_path, target_size_kb=200)
-            else:
-                logger.info("ocr识别结果为空，不压缩图片")
-            # print(f"Detected change on monitor {i + 1}: {text}")
-            endTime = time.time()
-            #耗时计算时，保留小数点后两位
-            logger.info(f"截图保存完成，耗时：{endTime - startTime:.2f}秒")
-            insert_entry(
-                "", timestamp, text, active_app_name, active_window_title
-            )
+
+            # 记录截图完成时间
+            end_time = time.time()
+            screenshot_logger.debug(f"截图保存完成，耗时：{end_time - startTime:.2f}秒")
 

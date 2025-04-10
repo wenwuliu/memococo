@@ -2,10 +2,10 @@
 
 ## 使用 .deb 包安装
 
-1. 下载 memococo_2.2.1_amd64.deb 包
+1. 下载 memococo_2.2.2_amd64.deb 包
 2. 使用以下命令安装：
    ```bash
-   sudo dpkg -i memococo_2.2.1_amd64.deb
+   sudo dpkg -i memococo_2.2.2_amd64.deb
    ```
 3. 安装脚本会自动安装所有必要的依赖
 4. 安装完成后，可以通过以下方式启动 MemoCoco：

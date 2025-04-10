@@ -6,7 +6,7 @@ import toml
 app_name_cn = "时光胶囊"
 app_name_en = "MemoCoco"
 main_app_name = app_name_en
-app_version = "2.2.1"
+app_version = "2.2.2"
 
 parser = argparse.ArgumentParser(description=main_app_name)
 
@@ -62,6 +62,8 @@ def get_settings():
         with open(config_path, "r", encoding="utf-8") as f:
             config = toml.load(f)
 
+        # 移除了OCR引擎选择功能，只使用RapidOCR
+
         return config
     else:
     # 如果配置文件不存在，则使用默认配置生成配置文件，并返回默认配置,default_ignored_apps需要保存为list
@@ -97,14 +99,56 @@ create_directory_if_not_exists(screenshots_path)
 # logger配置
 import logging
 from logging.handlers import RotatingFileHandler
-logger = logging.getLogger("memococo")
-logger.setLevel(logging.DEBUG)
-formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-console = logging.StreamHandler()
-console.setLevel(logging.INFO)
-logger.addHandler(console)
-#设置logger最大文件大小为10MB，最多保留5个备份文件
-file_handler = RotatingFileHandler(os.path.join(appdata_folder, "memococo.log"), maxBytes=10*1024*1024, backupCount=1)
-file_handler.setLevel(logging.DEBUG)
-file_handler.setFormatter(formatter)
-logger.addHandler(file_handler)
+
+# 创建日志格式器
+main_formatter = logging.Formatter('%(asctime)s - [MAIN] - %(levelname)s - %(message)s')
+screenshot_formatter = logging.Formatter('%(asctime)s - [SCREENSHOT] - %(levelname)s - %(message)s')
+ocr_formatter = logging.Formatter('%(asctime)s - [OCR] - %(levelname)s - %(message)s')
+
+# 创建日志文件处理器
+log_file = os.path.join(appdata_folder, "memococo.log")
+
+# 创建主应用日志对象
+main_logger = logging.getLogger("memococo.main")
+main_logger.setLevel(logging.DEBUG)
+
+main_console = logging.StreamHandler()
+main_console.setLevel(logging.INFO)
+main_console.setFormatter(main_formatter)
+main_logger.addHandler(main_console)
+
+main_file = RotatingFileHandler(log_file, maxBytes=10*1024*1024, backupCount=1)
+main_file.setLevel(logging.DEBUG)
+main_file.setFormatter(main_formatter)
+main_logger.addHandler(main_file)
+
+# 创建截图模块日志对象
+screenshot_logger = logging.getLogger("memococo.screenshot")
+screenshot_logger.setLevel(logging.DEBUG)
+
+screenshot_console = logging.StreamHandler()
+screenshot_console.setLevel(logging.INFO)
+screenshot_console.setFormatter(screenshot_formatter)
+screenshot_logger.addHandler(screenshot_console)
+
+screenshot_file = RotatingFileHandler(log_file, maxBytes=10*1024*1024, backupCount=1)
+screenshot_file.setLevel(logging.DEBUG)
+screenshot_file.setFormatter(screenshot_formatter)
+screenshot_logger.addHandler(screenshot_file)
+
+# 创建OCR模块日志对象
+ocr_logger = logging.getLogger("memococo.ocr")
+ocr_logger.setLevel(logging.DEBUG)
+
+ocr_console = logging.StreamHandler()
+ocr_console.setLevel(logging.INFO)
+ocr_console.setFormatter(ocr_formatter)
+ocr_logger.addHandler(ocr_console)
+
+ocr_file = RotatingFileHandler(log_file, maxBytes=10*1024*1024, backupCount=1)
+ocr_file.setLevel(logging.DEBUG)
+ocr_file.setFormatter(ocr_formatter)
+ocr_logger.addHandler(ocr_file)
+
+# 兼容旧代码
+logger = main_logger

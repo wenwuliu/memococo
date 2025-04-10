@@ -92,12 +92,52 @@ def get_unique_apps() ->List[str]:
         return [result[0] for result in results if result[0]]
 
 def get_newest_empty_text() -> Entry:
+    """获取最新的空文本条目
+
+    Returns:
+        最新的空文本条目，如果没有则返回None
+    """
     with get_db_connection() as conn:
         c = conn.cursor()
         result = c.execute(
-            "SELECT * FROM entries WHERE text = '' ORDER BY timestamp DESC LIMIT 1"
+            "SELECT * FROM entries WHERE text = '' or text IS NULL ORDER BY timestamp DESC LIMIT 1"
         ).fetchone()
         return Entry(*result) if result else None
+
+def get_empty_text_count() -> int:
+    """获取需要OCR的条目总数
+
+    Returns:
+        需要OCR的条目总数
+    """
+    with get_db_connection() as conn:
+        c = conn.cursor()
+        result = c.execute(
+            "SELECT COUNT(*) FROM entries WHERE text = '' or text IS NULL"
+        ).fetchone()
+        return result[0] if result else 0
+
+def get_batch_empty_text(batch_size: int = 5, oldest_first: bool = True) -> List[Entry]:
+    """批量获取空文本条目
+
+    一次性获取多条空文本条目，提高效率
+
+    Args:
+        batch_size: 批处理大小
+        oldest_first: 是否按时间升序（从旧到新）排序，默认为True
+
+    Returns:
+        空文本条目列表
+    """
+    with get_db_connection() as conn:
+        c = conn.cursor()
+        # 根据参数决定排序方式
+        order = "ASC" if oldest_first else "DESC"
+        results = c.execute(
+            f"SELECT * FROM entries WHERE text = '' or text IS NULL ORDER BY timestamp {order} LIMIT ?",
+            (batch_size,)
+        ).fetchall()
+        return [Entry(*result) for result in results]
 
 def update_entry_text(entry_id: int, text: str, jsontext: str) -> None:
     try:

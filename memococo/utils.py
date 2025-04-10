@@ -765,34 +765,3 @@ class ImageVideoTool:
             logger.error("Failed to extract frame")
             return None
 
-if __name__ == "__main__":
-
-    # text = "这是一个超大的字符串示例，包含一些关键词如apple、banana、cherry和date。"
-    # keywords = ["app22le", "b33anana", "ch33erry", "d22ate", "egg11"]
-    # result = count_unique_keywords(text, keywords)
-    import time
-    start_time = time.time()
-    tool = ImageVideoTool("/home/liuwenwu/.local/share/MemoCoco/screenshots/2025/03/24")
-    # # 转换图片（按文件名排序）
-    tool.images_to_video( sort_by="name")
-    # time.sleep(1)
-    end_time = time.time()
-    print(f"程序加载工具：{end_time - start_time:.2f}秒")
-    # start_time = time.time()
-    # byte_stream = tool.query_image("1739516282")
-    # if byte_stream:
-    #     # 提取图片（支持模糊查询）
-    #     end_time = time.time()
-    #     print(f"程序提取图像：{end_time - start_time:.2f}秒")
-    # else:
-    #     print("未找到匹配的图片")
-    # end_time = time.time()
-    # print(f"程序加载工具：{end_time - start_time:.2f}秒")
-    # start_time = time.time()
-    # byte_stream = tool.query_image("1739516688")
-    # if byte_stream:
-    #     # 提取图片（支持模糊查询）
-    #     end_time = time.time()
-    #     print(f"程序提取图像：{end_time - start_time:.2f}秒")
-    # else:
-    #     print("未找到匹配的图片")
