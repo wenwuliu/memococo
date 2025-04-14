@@ -36,7 +36,24 @@ cat > pkg/usr/bin/memococo << 'EOF'
 # 设置环境变量
 export PYTHONPATH=/usr/share/memococo:$PYTHONPATH
 
+# 检查数据目录
+DATA_DIR="/var/lib/memococo"
+if [ ! -d "$DATA_DIR" ]; then
+    echo "Creating data directory: $DATA_DIR"
+    mkdir -p "$DATA_DIR"
+    # 如果以root运行，尝试设置正确的权限
+    if [ "$(id -u)" = "0" ]; then
+        chown $(logname):$(logname) "$DATA_DIR"
+    fi
+fi
+
+# 检查数据目录权限
+if [ ! -w "$DATA_DIR" ]; then
+    echo "Warning: Data directory $DATA_DIR is not writable by current user"
+fi
+
 # 启动应用程序
+echo "Starting MemoCoco application..."
 python3 -m memococo.app
 EOF
 
@@ -63,17 +80,27 @@ cp memococo/static/favicon144x144.png pkg/usr/share/icons/hicolor/128x128/apps/m
 
 # 创建 systemd 服务文件
 echo "正在创建 systemd 服务文件..."
-cat > pkg/usr/share/memococo/memococo.service << 'EOF'
+cat > pkg/usr/share/memococo/memococo@.service << 'EOF'
 [Unit]
 Description=MemoCoco Service
-After=network.target
+After=network.target graphical-session.target
+Wants=network.target graphical-session.target
 
 [Service]
 Type=simple
 User=%i
+Environment="PYTHONPATH=/usr/share/memococo:${PYTHONPATH}"
+WorkingDirectory=/var/lib/memococo
 ExecStart=/usr/bin/memococo
 Restart=on-failure
 RestartSec=5s
+
+# 确保服务可以访问数据目录
+ExecStartPre=/bin/sh -c 'mkdir -p /var/lib/memococo && chown %i:%i /var/lib/memococo'
+
+# 添加日志配置
+StandardOutput=journal
+StandardError=journal
 
 [Install]
 WantedBy=multi-user.target
@@ -101,11 +128,13 @@ pip3 install rapidocr_onnxruntime>=1.2.3 || echo "警告: 无法安装 rapidocr-
 # 创建数据目录
 echo "正在创建数据目录..."
 mkdir -p /var/lib/memococo
-chmod 755 /var/lib/memococo
+chmod 777 /var/lib/memococo
+# 注意：这里我们使用777权限确保所有用户都可以访问该目录
+# 服务启动时会为特定用户设置正确的权限
 
 # 安装 systemd 服务
 echo "正在安装系统服务..."
-cp /usr/share/memococo/memococo.service /etc/systemd/system/
+cp /usr/share/memococo/memococo@.service /etc/systemd/system/
 systemctl daemon-reload
 
 echo "=================================================="
@@ -128,7 +157,7 @@ systemctl disable memococo@* || true
 
 echo "正在删除系统服务文件..."
 # 删除 systemd 服务文件
-rm -f /etc/systemd/system/memococo.service
+rm -f /etc/systemd/system/memococo@.service
 systemctl daemon-reload
 
 echo "注意: 用户数据在 /var/lib/memococo 目录中保留。"

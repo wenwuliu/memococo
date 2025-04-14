@@ -7,7 +7,8 @@ from PIL import Image
 import datetime
 import io
 from memococo.config import screenshots_path, args,app_name_en,app_name_cn,screenshot_logger
-from memococo.database import insert_entry,get_empty_text_count
+from memococo.database import insert_entry,get_empty_text_count,get_newest_empty_text,remove_entry,update_entry_text
+from memococo.ocr import extract_text_from_image
 import subprocess
 import pyautogui
 import psutil
@@ -399,7 +400,20 @@ def record_screenshots_thread(ignored_apps, ignored_apps_updated, save_power=Tru
             if not user_inactive_logged:
                 screenshot_logger.debug("User is inactive, sleeping...")
                 user_inactive_logged = True
-            continue
+            # 查询待处理OCR数量
+            idle_data = get_newest_empty_text()
+            if idle_data:
+                screenshot_logger.debug(f"Idle data: {idle_data}")
+                try:
+                    timestamp_dt = datetime.datetime.fromtimestamp(idle_data.timestamp)
+                    image_path = os.path.join(get_screenshot_path(timestamp_dt), f"{idle_data.timestamp}.webp")
+                    idle_ocr_text = extract_text_from_image(np.array(Image.open(image_path)))
+                    update_entry_text(idle_data.id, idle_ocr_text, "")
+                except Exception as e:
+                    screenshot_logger.error(f"Error parsing idle data: {e}")
+                    # 删除待处理数据
+                    remove_entry(idle_data.id)
+                    continue
         else:
             user_inactive_logged = False
             idle_time = default_idle_time
@@ -449,7 +463,19 @@ def record_screenshots_thread(ignored_apps, ignored_apps_updated, save_power=Tru
             # 检查CPU使用率和温度
             cpu_usage = psutil.cpu_percent(interval=1)
             cpu_temperature = get_cpu_temperature()
-
+            if cpu_usage > 70 or (cpu_temperature is not None and cpu_temperature > 70):
+                ocr_text = ''
+            else:
+                #使用ocr处理
+                try:
+                    ocr_image = Image.open(image_path)
+                    image_array = np.array(ocr_image)
+                    ocr_text = extract_text_from_image(image_array)
+                except Exception as e:
+                    screenshot_logger.error(f"Failed to ocr: {e}")
+                    ocr_text = ''
+            
+            
             # 如果启用压缩，先同步压缩图像，再保存到数据库
             if enable_compress and not power_saving_mode(save_power) and cpu_usage < 70 and (cpu_temperature is None or cpu_temperature < 75):
                 screenshot_logger.debug(f"开始压缩图像: {image_path}")
@@ -459,7 +485,7 @@ def record_screenshots_thread(ignored_apps, ignored_apps_updated, save_power=Tru
                 screenshot_logger.debug(f"图像压缩完成: {image_path}, 耗时: {compress_end_time - compress_start_time:.2f}秒")
 
             # 压缩完成后，将数据插入数据库，使用空文本（OCR将由独立线程处理）
-            insert_entry("", timestamp, "", active_app_name, active_window_title)
+            insert_entry("", timestamp, ocr_text, active_app_name, active_window_title)
 
             # 如果当前的年月日和dirDate不同，则创建新的目录
             if dirDate != datetime.datetime.now().date():

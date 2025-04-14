@@ -346,8 +346,8 @@ def start_background_threads():
         main_logger.info("Screenshot recording thread started")
 
         # 启动OCR处理线程
-        ocr_thread = start_ocr_processor()
-        main_logger.info("OCR processor thread started")
+        # ocr_thread = start_ocr_processor()
+        # main_logger.info("OCR processor thread started")
 
         # 注意：自动清理功能已移除，以确保数据持久保存
 

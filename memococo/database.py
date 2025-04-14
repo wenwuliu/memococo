@@ -139,6 +139,48 @@ def get_batch_empty_text(batch_size: int = 5, oldest_first: bool = True) -> List
         ).fetchall()
         return [Entry(*result) for result in results]
 
+def get_empty_text_timestamp_range() -> tuple:
+    """获取未OCR条目的时间戳范围
+
+    Returns:
+        (最早时间戳, 最新时间戳)的元组，如果没有未OCR条目则返回(None, None)
+    """
+    with get_db_connection() as conn:
+        c = conn.cursor()
+        # 获取最早的未OCR条目时间戳
+        min_result = c.execute(
+            "SELECT MIN(timestamp) FROM entries WHERE text = '' or text IS NULL"
+        ).fetchone()
+
+        # 获取最新的未OCR条目时间戳
+        max_result = c.execute(
+            "SELECT MAX(timestamp) FROM entries WHERE text = '' or text IS NULL"
+        ).fetchone()
+
+        min_timestamp = min_result[0] if min_result and min_result[0] is not None else None
+        max_timestamp = max_result[0] if max_result and max_result[0] is not None else None
+
+        return (min_timestamp, max_timestamp)
+
+def get_empty_text_in_range(start_timestamp: int, end_timestamp: int, limit: int = 10) -> List[Entry]:
+    """获取指定时间范围内的未OCR条目
+
+    Args:
+        start_timestamp: 开始时间戳
+        end_timestamp: 结束时间戳
+        limit: 最大返回条目数
+
+    Returns:
+        指定时间范围内的未OCR条目列表，按时间戳升序排序
+    """
+    with get_db_connection() as conn:
+        c = conn.cursor()
+        results = c.execute(
+            "SELECT * FROM entries WHERE (text = '' or text IS NULL) AND timestamp >= ? AND timestamp <= ? ORDER BY timestamp ASC LIMIT ?",
+            (start_timestamp, end_timestamp, limit)
+        ).fetchall()
+        return [Entry(*result) for result in results]
+
 def update_entry_text(entry_id: int, text: str, jsontext: str) -> None:
     try:
         with get_db_connection() as conn:
