@@ -15,8 +15,12 @@ install_requires = [
     "pyautogui>=0.9.54",
     "ffmpeg-python>=0.2.0",
     "rapidocr_onnxruntime>=1.2.3",
+    "easyocr>=1.7.1",  # 添加EasyOCR支持
     "requests>=2.32.3",
     "jsonify>=0.5",
+    "opencv-python>=4.5.1",
+    "pillow>=8.2.0",
+    "psutil>=5.8.0",
 ]
 
 # 操作系统特定依赖
@@ -33,7 +37,7 @@ if current_os in OS_DEPENDENCIES:
 
 setup(
     name="MemoCoco",
-    version="2.2.2",
+    version="2.3.0",  # 更新版本号，添加了智能选择OCR引擎的功能
     description="MemoCoco - 时间胶囊",
     long_description=long_description,
     long_description_content_type="text/markdown",
