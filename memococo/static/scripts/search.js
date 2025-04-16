@@ -382,9 +382,18 @@ const SearchController = {
 document.addEventListener('DOMContentLoaded', function() {
     // 检查是否存在搜索结果数据
     const entriesElement = document.getElementById('search-entries-data');
-    if (entriesElement && entriesElement.dataset.entries) {
+    console.log(entriesElement);
+    if (entriesElement) {
         try {
-            const entries = JSON.parse(entriesElement.dataset.entries);
+            // 从script标签内容中获取JSON数据
+            const jsonText = entriesElement.textContent.trim();
+            if (!jsonText) {
+                console.warn('No search entries data found');
+                SearchController.init([]);
+                return;
+            }
+
+            const entries = JSON.parse(jsonText);
             if (Array.isArray(entries)) {
                 SearchController.init(entries);
             } else {

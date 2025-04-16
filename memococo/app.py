@@ -205,13 +205,29 @@ def search():
     serialized_entries = []
     if entries:  # 确保条目列表不为空
         for entry in entries:
+            # 限制文本长度，避免JSON解析错误
+            text = entry.text
+            if text and len(text) > 1000:
+                text = text[:1000] + "..."
+
+            # 处理jsontext，避免嵌套JSON导致的解析错误
+            jsontext = None
+            if entry.jsontext:
+                try:
+                    # 如果是字符串形式的JSON，尝试解析为对象
+                    import json
+                    jsontext = json.loads(entry.jsontext) if isinstance(entry.jsontext, str) else entry.jsontext
+                except Exception as e:
+                    main_logger.error(f"解析jsontext失败: {e}")
+                    jsontext = None
+
             serialized_entries.append([
                 entry.id,
                 entry.app,
                 entry.title,
-                entry.text,
+                text,
                 entry.timestamp,
-                entry.jsontext
+                jsontext
             ])
     main_logger.info(f"Serialized {len(serialized_entries)} entries for search results")
 

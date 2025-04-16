@@ -33,7 +33,9 @@
     </div>
 
     <!-- 存储搜索结果数据 -->
-    <div id="search-entries-data" data-entries="{{ entries|default([])|tojson }}" style="display: none;"></div>
+    <script type="application/json" id="search-entries-data">
+    {{ entries|default([])|tojson|safe }}
+    </script>
 {% endblock %}
 
 {% block page_scripts %}
