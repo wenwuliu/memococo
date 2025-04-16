@@ -1,11 +1,11 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="{{ get_locale() }}">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <meta name="description" content="MemoCoco - 时光胶囊，记录你的屏幕活动">
+  <meta name="description" content="{{ _('app_name') }} - {{ _('app_description') }}">
   <meta name="theme-color" content="#4CAF50">
-  <title>{{ app_name }}</title>
+  <title>{{ _('app_name') }}</title>
   <!-- icon -->
   <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}" type="image/x-icon">
   <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}">
@@ -14,204 +14,30 @@
   <link rel="stylesheet" href="{{ url_for('static', filename='bootstrap-icons.css') }}">
   <!-- 响应式设计CSS -->
   <link rel="stylesheet" href="{{ url_for('static', filename='responsive.css') }}">
+  <!-- 主样式表 -->
+  <link rel="stylesheet" href="{{ url_for('static', filename='styles/main.css') }}">
   <!-- 预加载关键资源 -->
   <link rel="preload" href="{{ url_for('static', filename='bootstrap.min.js') }}" as="script">
   <link rel="preload" href="{{ url_for('static', filename='jquery.min.js') }}" as="script">
-  <style>
-    .highlight {
-        border: 2px solid red;
-        position: absolute;
-        pointer-events: none;
-    }
-    .text-label {
-        position: absolute;
-        background-color: rgba(255, 255, 255, 0.7);
-        padding: 2px;
-        border: 1px solid #000;
-        font-size: 12px;
-        cursor: pointer;
-    }
-    /* 自定义 slider 样式 */
-    .slider-container {
-      width: 100%;
-      margin: 20px 0;
-      position: relative;
-    }
-
-    /* 应用列表样式 */
-    .card {
-      position: relative;
-      z-index: 10; /* 确保在时间节点上方 */
-    }
-
-    #app-list {
-      position: relative;
-      z-index: 10;
-    }
-
-    .slider-wrapper {
-      width: 100%;
-      padding-top: 40px; /* 为时间节点留出空间 */
-      margin-bottom: 20px;
-    }
-
-    .slider {
-      -webkit-appearance: none;
-      width: 100%;
-      height: 10px;
-      border-radius: 5px;
-      background: #e0e0e0;
-      outline: none;
-      opacity: 0.7;
-      -webkit-transition: .2s;
-      transition: opacity .2s;
-    }
-
-    .slider:hover {
-      opacity: 1;
-    }
-
-    .slider::-webkit-slider-thumb {
-      -webkit-appearance: none;
-      appearance: none;
-      width: 20px;
-      height: 20px;
-      border-radius: 50%;
-      background: #4CAF50;
-      cursor: pointer;
-      -webkit-transition: .3s;
-      transition: .3s;
-    }
-
-    .slider::-webkit-slider-thumb:hover {
-      background: #45a049;
-    }
-
-    .slider::-moz-range-thumb {
-      width: 20px;
-      height: 20px;
-      border: 0;
-      border-radius: 50%;
-      background: #4CAF50;
-      cursor: pointer;
-      transition: .3s;
-    }
-
-    .slider::-moz-range-thumb:hover {
-      background: #45a049;
-    }
-
-    .slider::-ms-thumb {
-      width: 20px;
-      height: 20px;
-      border-radius: 50%;
-      background: #4CAF50;
-      cursor: pointer;
-      transition: .3s;
-    }
-
-    .slider::-ms-thumb:hover {
-      background: #45a049;
-    }
-    .slider-value {
-      margin-top: 10px;
-      font-size: 1.2em;
-    }
-
-    /* 时间节点样式 */
-    #timeNodes {
-      position: absolute;
-      width: 100%;
-      height: 30px;
-      top: 5px;
-      left: 0;
-      z-index: 5; /* 降低 z-index，确保在 app 列表下方 */
-    }
-
-    .time-node {
-      position: absolute;
-      background-color: #4CAF50;
-      color: white;
-      padding: 2px 5px;
-      border-radius: 3px;
-      font-size: 12px;
-      transform: translateX(-50%);
-      white-space: nowrap;
-      z-index: 5; /* 降低 z-index，确保在 app 列表下方 */
-      cursor: pointer;
-      transition: all 0.3s;
-      top: 0;
-      opacity: 1 !important; /* 确保始终可见 */
-      box-shadow: 0 1px 3px rgba(0,0,0,0.2);
-    }
-
-    .time-node:hover {
-      background-color: #45a049;
-      box-shadow: 0 2px 5px rgba(0,0,0,0.3);
-      transform: translateX(-50%) translateY(-2px);
-    }
-
-    .time-node::after {
-      content: '';
-      position: absolute;
-      bottom: -5px;
-      left: 50%;
-      transform: translateX(-50%);
-      width: 0;
-      height: 0;
-      border-left: 5px solid transparent;
-      border-right: 5px solid transparent;
-      border-top: 5px solid #4CAF50;
-    }
-    .image-container {
-      margin-top: 20px;
-      text-align: center;
-        position: relative;
-        display: inline-block;
-    }
-    .image-container img {
-      max-width: 100%;
-      height: auto;
-    }
-    .time-node {
-      position: absolute;
-      background-color: #fff;
-      padding: 5px;
-      border: 1px solid #ccc;
-      border-radius: 3px;
-    }
-    /* 居中搜索栏 */
-    .navbar .container {
-      justify-content: center;
-    }
-    .form-inline {
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      width: 100%;
-      max-width: 1000px; /* 可根据需要调整最大宽度 */
-      margin: 0 auto;
-    }
-
-    .form-control {
-      flex-grow: 1;
-      margin-right: 10px;
-    }
-  </style>
 </head>
 <body>
+{% from 'components/language_switcher.html' import language_switcher %}
+
 <nav class="navbar navbar-light bg-light">
   <div class="container">
     <form class="form-inline my-2 my-lg-0 w-100 d-flex justify-content-center" action="/search" method="get">
-      <input class="form-control flex-grow-1 mr-sm-2 rounded-lg" type="search" name="q" placeholder="Search" aria-label="Search" value="{{ q }}">
-      <button class="btn btn-outline-primary my-2 my-sm-0 rounded-lg" type="submit">
+      <input class="form-control flex-grow-1 mr-sm-2 rounded-lg" type="search" name="q" placeholder="{{ _('search_placeholder') }}" aria-label="{{ _('nav_search') }}" value="{{ q }}">
+      <button class="btn btn-outline-primary my-2 my-sm-0 rounded-lg" type="submit" title="{{ _('nav_search') }}">
         <i class="bi bi-search"></i>
       </button>
     </form>
   </div>
-  <a class="btn btn-outline-primary my-2 my-sm-0 rounded-lg" href="{{ url_for('settings') }}">
-    <i class="bi bi-gear"></i>
-  </a>
+  <div class="d-flex align-items-center">
+    {{ language_switcher(get_locale(), get_available_locales()) }}
+    <a class="btn btn-outline-primary my-2 my-sm-0 rounded-lg ml-2" href="{{ url_for('settings') }}" title="{{ _('nav_settings') }}">
+      <i class="bi bi-gear"></i>
+    </a>
+  </div>
 </nav>
 {% block content %}
 
@@ -222,9 +48,15 @@
   <script src="{{ url_for('static', filename='popper.min.js') }}"></script>
   <script src="{{ url_for('static', filename='bootstrap.min.js') }}"></script>
 
+  <!-- 工具函数和通用功能 -->
+  <script src="{{ url_for('static', filename='scripts/utils.js') }}"></script>
+
   <!-- 响应式设计JS -->
   <script src="{{ url_for('static', filename='lazy-load.js') }}"></script>
   <script src="{{ url_for('static', filename='theme-switcher.js') }}"></script>
+
+  <!-- 页面特定脚本 -->
+  {% block page_scripts %}{% endblock %}
 
   <!-- 主题切换按钮 -->
   <div class="theme-switcher-container">
