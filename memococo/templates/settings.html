@@ -6,8 +6,8 @@
     <div class="mb-3">
       <label for="use_ollama" class="form-label">{{ _('settings_use_ollama') }}</label>
       <select class="form-control" id="use_ollama" name="use_ollama" required>
-        <option value="True" {% if settings['use_ollama'] == 'True' %}selected{% endif %}>True</option>
-        <option value="False" {% if settings['use_ollama'] == 'False' %}selected{% endif %}>False</option>
+        <option value="True" {% if settings['use_ollama'] == True or settings['use_ollama'] == 'True' %}selected{% endif %}>True</option>
+        <option value="False" {% if settings['use_ollama'] == False or settings['use_ollama'] == 'False' %}selected{% endif %}>False</option>
       </select>
       <div class="invalid-feedback">
         {{ _('settings_select_use_ollama') }}

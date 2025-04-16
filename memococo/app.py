@@ -232,7 +232,7 @@ def settings():
 
         # 保存设置
         save_settings({
-            "use_ollama": use_ollama,
+            "use_ollama": use_ollama == "True",  # 转换为布尔值
             "model": model,
             "ignored_apps": local_ignored_apps,
         })

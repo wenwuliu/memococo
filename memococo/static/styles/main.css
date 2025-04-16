@@ -346,6 +346,42 @@ body.dark-mode .card-footer {
     border-top-color: #495057;
 }
 
+/* 暗黑模式下的下拉菜单样式 */
+body.dark-mode .dropdown-menu,
+html.dark-mode .dropdown-menu {
+    background-color: #343a40;
+    border-color: #495057;
+}
+
+body.dark-mode .dropdown-item,
+html.dark-mode .dropdown-item {
+    color: #f8f9fa;
+}
+
+body.dark-mode .dropdown-item:hover,
+html.dark-mode .dropdown-item:hover {
+    background-color: #495057;
+    color: #ffffff;
+}
+
+body.dark-mode .dropdown-item.active,
+html.dark-mode .dropdown-item.active {
+    background-color: #007bff;
+    color: #ffffff;
+}
+
+body.dark-mode .btn-outline-secondary,
+html.dark-mode .btn-outline-secondary {
+    color: #adb5bd;
+    border-color: #6c757d;
+}
+
+body.dark-mode .btn-outline-secondary:hover,
+html.dark-mode .btn-outline-secondary:hover {
+    background-color: #6c757d;
+    color: #ffffff;
+}
+
 /* 辅助类 */
 .mb-20 {
     margin-bottom: 20px;
