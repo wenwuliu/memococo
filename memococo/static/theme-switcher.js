@@ -47,12 +47,22 @@ class ThemeSwitcher {
       return;
     }
 
+    // 在切换前添加过渡类
+    document.documentElement.classList.add('theme-transition');
+    document.body.classList.add('theme-transition');
+
     this.currentTheme = theme;
     this._storeTheme(theme);
     this._applyTheme();
 
     // 触发主题变更事件
     window.dispatchEvent(new CustomEvent('themechange', { detail: { theme } }));
+
+    // 完成过渡后移除过渡类
+    setTimeout(() => {
+      document.documentElement.classList.remove('theme-transition');
+      document.body.classList.remove('theme-transition');
+    }, 300);
   }
 
   /**

@@ -420,6 +420,7 @@ def is_user_active_windows(idle_threshold=5):
 def is_user_active_linux():
     try:
         idle_time = int(subprocess.check_output([XPRINTIDLE]).strip()) / 1000  # 转换为秒
+        logger.debug(f"User idle time: {idle_time} seconds")
         return idle_time < 5
     except Exception as e:
         logger.warning(f"Error getting user idle time on Linux: {e}")
