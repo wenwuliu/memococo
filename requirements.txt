@@ -12,3 +12,4 @@ opencv-python>=4.5.1
 pillow>=8.2.0
 psutil>=5.8.0
 babel>=2.14.0
+markupsafe>=2.1.5

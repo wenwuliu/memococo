@@ -22,6 +22,7 @@ install_requires = [
     "pillow>=8.2.0",
     "psutil>=5.8.0",
     "babel>=2.14.0",  # 添加国际化支持
+    "markupsafe>=2.1.5",  # 添加模板安全支持
 ]
 
 # 操作系统特定依赖
