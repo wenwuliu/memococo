@@ -16,7 +16,8 @@ from memococo.utils import (
     get_active_app_name,
     get_active_window_title,
     is_user_active,
-    get_cpu_temperature
+    get_cpu_temperature,
+    ImageVideoTool
 )
 
 WINDOWS = "win32"
@@ -380,17 +381,17 @@ def record_screenshots_thread(ignored_apps, ignored_apps_updated, save_power=Tru
     default_idle_time = idle_time
     # 间隔时间为5秒
     while True:
-        pending_ocr_count = get_empty_text_count()
+        # pending_ocr_count = get_empty_text_count()
 
         # 根据待处理数量动态调整间隔
-        if pending_ocr_count > 200 and last_adjustment + 60 < time.time():
-            current_interval = min(current_interval * 1.5, max_interval)
-            last_adjustment = time.time()
-            screenshot_logger.debug(f"Adjusting interval to {current_interval} seconds")
-        elif pending_ocr_count < 50 and last_adjustment + 60 < time.time():
-            current_interval = max(base_interval, current_interval / 1.2)
-            last_adjustment = time.time()
-            screenshot_logger.debug(f"Adjusting interval to {current_interval} seconds")
+        # if pending_ocr_count > 200 and last_adjustment + 60 < time.time():
+        #     current_interval = min(current_interval * 1.5, max_interval)
+        #     last_adjustment = time.time()
+        #     screenshot_logger.debug(f"Adjusting interval to {current_interval} seconds")
+        # elif pending_ocr_count < 50 and last_adjustment + 60 < time.time():
+        #     current_interval = max(base_interval, current_interval / 1.2)
+        #     last_adjustment = time.time()
+        #     screenshot_logger.debug(f"Adjusting interval to {current_interval} seconds")
 
         time.sleep(current_interval)
         if ignored_apps_updated.is_set():
@@ -406,11 +407,61 @@ def record_screenshots_thread(ignored_apps, ignored_apps_updated, save_power=Tru
                 screenshot_logger.debug(f"Idle data: {idle_data}")
                 try:
                     timestamp_dt = datetime.datetime.fromtimestamp(idle_data.timestamp)
-                    image_path = os.path.join(get_screenshot_path(timestamp_dt), f"{idle_data.timestamp}.webp")
+                    date_folder = get_screenshot_path(timestamp_dt)
+                    image_path = os.path.join(date_folder, f"{idle_data.timestamp}.webp")
+
+                    # 检查图片是否存在
+                    if not os.path.exists(image_path):
+                        # 检查该日期文件夹是否已备份
+                        image_video_tool = ImageVideoTool(date_folder)
+                        if image_video_tool.is_backed_up():
+                            screenshot_logger.info(f"Image not found but folder is backed up, trying to retrieve from backup: {image_path}")
+                            # 尝试从备份中获取图片
+                            image_filename = f"{idle_data.timestamp}.webp"
+                            image_stream = image_video_tool.query_image(image_filename)
+
+                            if image_stream:
+                                # 从备份中成功获取图片，进行OCR处理
+                                screenshot_logger.info(f"Successfully retrieved image from backup: {image_filename}")
+                                image = Image.open(image_stream)
+                                idle_ocr_text = extract_text_from_image(np.array(image))
+
+                                # 如果OCR文本为空，则删除待处理数据
+                                if not idle_ocr_text:
+                                    screenshot_logger.debug(f"OCR text is empty for backed up image: {image_filename}")
+                                    remove_entry(idle_data.id)
+                                    continue
+
+                                # 更新OCR文本
+                                update_entry_text(idle_data.id, idle_ocr_text, "")
+                                screenshot_logger.info(f"Updated OCR text from backed up image: {image_filename}")
+                                continue
+                            else:
+                                # 无法从备份中获取图片，删除待处理数据
+                                screenshot_logger.warning(f"Failed to retrieve image from backup: {image_filename}")
+                                remove_entry(idle_data.id)
+                                continue
+                        else:
+                            # 文件夹未备份且图片不存在，删除待处理数据
+                            screenshot_logger.warning(f"Image not found and folder not backed up: {image_path}")
+                            remove_entry(idle_data.id)
+                            continue
+
+                    # 图片存在，直接进行OCR处理
                     idle_ocr_text = extract_text_from_image(np.array(Image.open(image_path)))
+
+                    # 如果idle_ocr_text 为空，则删除待处理数据
+                    if not idle_ocr_text:
+                        screenshot_logger.debug(f"OCR text is empty for image: {image_path}")
+                        remove_entry(idle_data.id)
+                        continue
+
+                    # 更新OCR文本
                     update_entry_text(idle_data.id, idle_ocr_text, "")
+                    screenshot_logger.info(f"Updated OCR text for image: {image_path}")
+                    continue
                 except Exception as e:
-                    screenshot_logger.error(f"Error parsing idle data: {e}")
+                    screenshot_logger.error(f"Error processing idle data: {e}")
                     # 删除待处理数据
                     remove_entry(idle_data.id)
                     continue
@@ -474,8 +525,8 @@ def record_screenshots_thread(ignored_apps, ignored_apps_updated, save_power=Tru
                 except Exception as e:
                     screenshot_logger.error(f"Failed to ocr: {e}")
                     ocr_text = ''
-            
-            
+
+
             # 如果启用压缩，先同步压缩图像，再保存到数据库
             if enable_compress and not power_saving_mode(save_power) and cpu_usage < 70 and (cpu_temperature is None or cpu_temperature < 70):
                 screenshot_logger.debug(f"开始压缩图像: {image_path}")
