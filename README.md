@@ -18,7 +18,7 @@ MemoCoco 是一个全开源、注重隐私的数字记忆工具，是 Microsoft 
 
 ### 增强功能
 
-- **OCR 引擎**：使用 RapidOCR 作为唯一的 OCR 引擎，支持中文和英文，无需用户选择
+- **智能 OCR 引擎**：支持多种 OCR 引擎，优先使用 UmiOCR，如果不可用则根据硬件环境自动选择 EasyOCR (GPU) 或 RapidOCR (CPU)
 - **本地 AI 与 Ollama 集成**：搜索引擎替换为 Ollama，支持 Ollama 支持的任何模型
 - **存储路径优化**：使用文件夹切片模式优化图像存储路径
 - **图片压缩**：新的图片压缩功能，确保单张图片大小小于 200K，预计单日文件大小小于 200M
@@ -31,6 +31,7 @@ MemoCoco 是一个全开源、注重隐私的数字记忆工具，是 Microsoft 
 - Python 3.8 或更高版本
 - 支持平台：Windows、macOS、Linux
 - 依赖：Flask、OpenCV、NumPy、MSS 等
+- 推荐安装 [UmiOCR](https://github.com/hiroi-sora/Umi-OCR) 以提高OCR识别速度和准确率
 
 ## 安装方法
 
@@ -39,7 +40,7 @@ MemoCoco 是一个全开源、注重隐私的数字记忆工具，是 Microsoft 
 1. 下载最新的 .deb 包
 2. 使用以下命令安装：
    ```bash
-   sudo dpkg -i memococo_2.2.2_amd64.deb
+   sudo dpkg -i memococo_2.2.3_amd64.deb
    ```
    安装脚本会自动安装所有必要的依赖
 
@@ -58,6 +59,38 @@ python3 -m memococo.app
 ```
 
 ## 使用方法
+
+### 安装和配置UmiOCR（推荐）
+
+为了获得最佳的OCR识别效果和速度，强烈推荐安装UmiOCR：
+
+1. 从[UmiOCR官方仓库](https://github.com/hiroi-sora/Umi-OCR/releases)下载最新版本
+2. 安装并启动UmiOCR
+3. 在UmiOCR中启用API服务：
+   - 点击“系统设置”
+   - 在“高级功能”中启用“API服务”
+   - 确保API服务端口为1224（默认值）
+
+4. 设置UmiOCR开机自启动：
+   - **Windows**：在UmiOCR系统设置中勾选“开机自启动”
+   - **Linux**：创建自启动服务
+     ```bash
+     # 创建自启动服务文件
+     mkdir -p ~/.config/autostart
+     cat > ~/.config/autostart/umiocr.desktop << EOF
+     [Desktop Entry]
+     Type=Application
+     Name=UmiOCR
+     Exec=/path/to/UmiOCR  # 替换为实际的UmiOCR路径
+     Terminal=false
+     X-GNOME-Autostart-enabled=true
+     EOF
+     ```
+   - **macOS**：将UmiOCR添加到登录项目中
+     1. 系统偏好设置 > 用户与群组 > 登录项目
+     2. 点击“+”按钮，选择UmiOCR应用
+
+安装并配置好UmiOCR后，MemoCoco将自动检测并使用UmiOCR进行OCR识别，显著提高识别速度和准确率。
 
 ### 启动应用
 
@@ -134,7 +167,7 @@ sudo gem install fpm
 ./build_deb.sh
 ```
 
-打包完成后，会在当前目录生成 `memococo_2.2.1_amd64.deb` 文件。
+打包完成后，会在当前目录生成 `memococo_2.2.3_amd64.deb` 文件。
 
 ## 贡献
 
