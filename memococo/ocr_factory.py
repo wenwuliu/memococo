@@ -128,6 +128,12 @@ def get_ocr_engine(force_type: Optional[str] = None) -> Tuple[Any, str]:
 
     # 如果引擎已初始化且类型匹配，直接返回
     if _ocr_engine is not None and (force_type is None or force_type == _ocr_engine_type):
+        engine_name = {
+            OCR_ENGINE_RAPIDOCR: "RapidOCR (CPU)",
+            OCR_ENGINE_EASYOCR: "EasyOCR (GPU)" if _gpu_available else "EasyOCR (CPU)",
+            OCR_ENGINE_UMIOCR: "UmiOCR API"
+        }.get(_ocr_engine_type, _ocr_engine_type)
+        logger.debug(f"[OCR] 使用已初始化的OCR引擎: {engine_name}")
         return _ocr_engine, _ocr_engine_type
 
     # 如果强制指定了引擎类型
@@ -272,24 +278,41 @@ def perform_ocr(engine: Any, engine_type: str, image: np.ndarray) -> List:
     if engine is None:
         return []
 
+    # 记录使用的OCR引擎类型
+    engine_name = {
+        OCR_ENGINE_RAPIDOCR: "RapidOCR (CPU)",
+        OCR_ENGINE_EASYOCR: "EasyOCR (GPU)" if _gpu_available else "EasyOCR (CPU)",
+        OCR_ENGINE_UMIOCR: "UmiOCR API"
+    }.get(engine_type, engine_type)
+
+    start_time = time.time()
+    logger.debug(f"[OCR] 开始使用 {engine_name} 进行OCR识别")
+
     try:
         if engine_type == OCR_ENGINE_RAPIDOCR:
             # RapidOCR处理
             result, _ = engine(image)  # 忽略引擎返回的耗时
+            elapsed_time = time.time() - start_time
+            logger.debug(f"[OCR] RapidOCR处理完成，耗时: {elapsed_time:.4f} 秒")
             return result
         elif engine_type == OCR_ENGINE_EASYOCR:
             # EasyOCR处理
             result = engine.readtext(image)
+            elapsed_time = time.time() - start_time
+            logger.debug(f"[OCR] EasyOCR处理完成，耗时: {elapsed_time:.4f} 秒")
             return result
         elif engine_type == OCR_ENGINE_UMIOCR:
             # UmiOCR处理
             result = engine.recognize(image)
+            elapsed_time = time.time() - start_time
+            logger.debug(f"[OCR] UmiOCR处理完成，耗时: {elapsed_time:.4f} 秒")
             return result
         else:
-            logger.error(f"不支持的OCR引擎类型: {engine_type}")
+            logger.error(f"[OCR] 不支持的OCR引擎类型: {engine_type}")
             return []
     except Exception as e:
-        logger.error(f"OCR处理错误 ({engine_type}): {e}")
+        elapsed_time = time.time() - start_time
+        logger.error(f"[OCR] {engine_name}处理错误，耗时: {elapsed_time:.4f} 秒, 错误: {e}")
         return []
 
 def extract_text_from_ocr_result(result: List, engine_type: str) -> str:
@@ -364,14 +387,22 @@ def extract_text_from_image(image: np.ndarray) -> str:
         # 提取文本
         text = extract_text_from_ocr_result(result, engine_type)
 
+        # 记录使用的OCR引擎类型
+        engine_name = {
+            OCR_ENGINE_RAPIDOCR: "RapidOCR (CPU)",
+            OCR_ENGINE_EASYOCR: "EasyOCR (GPU)" if _gpu_available else "EasyOCR (CPU)",
+            OCR_ENGINE_UMIOCR: "UmiOCR API"
+        }.get(engine_type, engine_type)
+
         elapsed_time = time.time() - start_time
-        logger.debug(f"OCR处理完成，使用 {engine_type}，耗时 {elapsed_time:.2f} 秒")
+        text_length = len(text)
+        logger.info(f"[OCR] 引擎: {engine_name}, 文本长度: {text_length} 字符, 耗时: {elapsed_time:.2f} 秒")
 
         return text
 
     except Exception as e:
         elapsed_time = time.time() - start_time
-        logger.error(f"OCR处理出错，耗时 {elapsed_time:.2f} 秒: {e}")
+        logger.error(f"[OCR] 处理出错，耗时: {elapsed_time:.2f} 秒, 错误: {e}")
         return ""
 
 def extract_text_from_images_batch(images: List[np.ndarray]) -> List[str]:
@@ -419,14 +450,22 @@ def extract_text_from_images_batch(images: List[np.ndarray]) -> List[str]:
             # 将结果放回原始位置
             results[valid_indices[i]] = text
 
+        # 记录使用的OCR引擎类型
+        engine_name = {
+            OCR_ENGINE_RAPIDOCR: "RapidOCR (CPU)",
+            OCR_ENGINE_EASYOCR: "EasyOCR (GPU)" if _gpu_available else "EasyOCR (CPU)",
+            OCR_ENGINE_UMIOCR: "UmiOCR API"
+        }.get(engine_type, engine_type)
+
         elapsed_time = time.time() - start_time
-        logger.info(f"批量OCR处理完成，使用 {engine_type}，耗时 {elapsed_time:.2f} 秒，处理了 {len(valid_images)} 张图像")
+        total_text_length = sum(len(text) for text in results if text)
+        logger.info(f"[OCR] 批量处理 - 引擎: {engine_name}, 总文本长度: {total_text_length} 字符, 处理图像数: {len(valid_images)}, 耗时: {elapsed_time:.2f} 秒")
 
         return results
 
     except Exception as e:
         elapsed_time = time.time() - start_time
-        logger.error(f"批量OCR处理出错，耗时 {elapsed_time:.2f} 秒: {e}")
+        logger.error(f"[OCR] 批量处理出错，耗时: {elapsed_time:.2f} 秒, 错误: {e}")
         return results
 
 # 测试代码
