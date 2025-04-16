@@ -99,13 +99,20 @@ def get_ocr_text(timestamp: int) -> str:
         timestamp: 时间戳
 
     Returns:
-        OCR文本
+        OCR文本或JSON文本
     """
     try:
         results = DatabaseManager.execute(
-            "SELECT text FROM entries WHERE timestamp = ?", (timestamp,)
+            "SELECT text, jsontext FROM entries WHERE timestamp = ?", (timestamp,)
         )
-        return results[0]["text"] if results else ""
+        if not results:
+            return ""
+
+        # 优先使用jsontext字段
+        if results[0]["jsontext"]:
+            return results[0]["jsontext"]
+        # 如果jsontext为空，使用text字段
+        return results[0]["text"] or ""
     except Exception as e:
         logger.error(f"获取OCR文本失败: {e}")
         return ""
@@ -140,7 +147,7 @@ def get_newest_empty_text() -> Optional[Entry]:
         )
         if not results:
             return None
-        
+
         result = results[0]
         return Entry(
             result["id"],

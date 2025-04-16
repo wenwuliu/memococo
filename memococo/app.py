@@ -282,11 +282,20 @@ def serve_image(filename):
 def get_ocr_text_by_timestamp(timestamp):
     #解析文件名，获取时间戳
     data = get_ocr_text(timestamp)
-    #如果为空，则返回空数组，否则转为json格式返回
+    #如果为空，则返回空数组
     if not data:
         return jsonify([])
-    else:
-        return data
+
+    try:
+        # 尝试解析jsontext字段
+        import json
+        jsontext = json.loads(data)
+        # 如果解析成功，返回json格式
+        return jsonify(jsontext)
+    except Exception as e:
+        main_logger.error(f"解析OCR文本失败: {e}")
+        # 如果解析失败，返回空数组
+        return jsonify([])
 
 @app.route("/unbacked_up_folders")
 @with_error_handling({"route": "unbacked_up_folders"})

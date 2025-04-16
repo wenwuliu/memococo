@@ -285,11 +285,16 @@ const TimelineController = {
         const textLabels = document.querySelectorAll('.text-label');
         textLabels.forEach(textLabel => textLabel.remove());
 
+        // 清除现有高亮框
+        const highlights = document.querySelectorAll('.highlight');
+        highlights.forEach(highlight => highlight.remove());
+
         // 获取OCR数据
         const data = await this.fetchData(timestamp);
 
         // 数据为空时，不执行下面的代码
-        if (data.length === 0) {
+        if (!data || data.length === 0) {
+            console.log('没有OCR数据');
             return;
         }
 
@@ -304,7 +309,25 @@ const TimelineController = {
 
         // 处理每个OCR文本框
         data.forEach(item => {
-            const { box, text } = item;
+            // 兼容不同的数据格式
+            let box, text;
+
+            if (Array.isArray(item)) {
+                // 如果是数组格式 [coords, text, accuracy]
+                const [coords, textValue] = item;
+                box = coords.slice(0, 4); // 取前4个值作为坐标
+                text = textValue;
+            } else if (typeof item === 'object') {
+                // 如果是对象格式 {box, text}
+                box = item.box;
+                text = item.text;
+            } else {
+                // 其他格式，跳过
+                return;
+            }
+
+            // 如果没有有效的box或text，跳过
+            if (!box || !text) return;
 
             // 计算缩放后的坐标
             const scaledX = box[0] * scaleX;
