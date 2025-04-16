@@ -20,7 +20,7 @@
   <link rel="preload" href="{{ url_for('static', filename='bootstrap.min.js') }}" as="script">
   <link rel="preload" href="{{ url_for('static', filename='jquery.min.js') }}" as="script">
 </head>
-<body>
+<body data-text-copied="{{ _('text_copied') }}" data-network-error="{{ _('error_network') }}" data-fetch-error="{{ _('error_fetch_data') }}">
 {% from 'components/language_switcher.html' import language_switcher %}
 
 <nav class="navbar navbar-light bg-light">

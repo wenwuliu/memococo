@@ -21,6 +21,7 @@ install_requires = [
     "opencv-python>=4.5.1",
     "pillow>=8.2.0",
     "psutil>=5.8.0",
+    "babel>=2.14.0",  # 添加国际化支持
 ]
 
 # 操作系统特定依赖

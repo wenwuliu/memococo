@@ -6,7 +6,7 @@
       <div class="modal-dialog modal-dialog-centered" role="document">
         <div class="modal-content">
           <div class="modal-header">
-            <h5 class="modal-title" id="flashModalLabel">提示</h5>
+            <h5 class="modal-title" id="flashModalLabel">{{ _('modal_title') }}</h5>
             <button type="button" class="close" data-dismiss="modal" aria-label="Close">
               <span aria-hidden="true">&times;</span>
             </button>
@@ -19,7 +19,7 @@
             </ul>
           </div>
           <div class="modal-footer">
-            <button type="button" class="btn btn-secondary" data-dismiss="modal">关闭</button>
+            <button type="button" class="btn btn-secondary" data-dismiss="modal">{{ _('modal_close') }}</button>
           </div>
         </div>
       </div>
@@ -27,8 +27,7 @@
 
     <script>
       document.addEventListener('DOMContentLoaded', function() {
-        var flashModal = new bootstrap.Modal(document.getElementById('flashModal'));
-        flashModal.show();
+        $('#flashModal').modal('show');
       });
     </script>
   {% endif %}
@@ -46,7 +45,7 @@
                             <a href="{{ url_for('search', q="", app=app) }}"><span class="badge badge-pill badge-primary">{{ app }}</span></a>
                         {% endfor %}
                       </div>
-                      <button id="toggle-apps" class="btn btn-link">展开</button>
+                      <button id="toggle-apps" class="btn btn-link" data-expand-text="{{ _('expand') }}" data-collapse-text="{{ _('collapse') }}">{{ _('expand') }}</button>
                     </div>
                 </div>
             </div>
@@ -72,7 +71,7 @@
 {% else %}
   <div class="container">
       <div class="alert alert-info" role="alert">
-          Nothing recorded yet, wait a few seconds.
+          {{ _('empty_state') }}
       </div>
   </div>
 {% endif %}

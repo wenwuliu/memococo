@@ -1,6 +1,6 @@
 /**
  * MemoCoco 时间轴功能
- * 
+ *
  * 处理时间轴滑块、时间节点和图片加载等功能
  */
 
@@ -61,14 +61,14 @@ const TimelineController = {
     setInitialValues: function() {
         // 设置滑块初始值为最新的时间戳
         this.elements.slider.value = this.data.timestamps.length - 1;
-        
+
         // 获取初始时间戳
         const initialIndex = 0; // 最新的时间戳索引
         const initialTimestamp = this.data.timestamps[initialIndex];
-        
+
         // 设置时间显示
         this.elements.sliderValue.textContent = this.formatTimestamp(initialTimestamp);
-        
+
         // 加载初始图片
         this.elements.timestampImage.src = `/pictures/${initialTimestamp}.webp`;
     },
@@ -79,10 +79,10 @@ const TimelineController = {
     bindEvents: function() {
         // 滑块输入事件
         this.elements.slider.addEventListener('input', this.handleSliderInput.bind(this));
-        
+
         // 图片加载完成事件
         this.elements.timestampImage.addEventListener('load', this.handleImageLoad.bind(this));
-        
+
         // 应用列表切换事件
         if (this.elements.toggleAppsButton) {
             this.elements.toggleAppsButton.addEventListener('click', this.toggleApps.bind(this));
@@ -96,21 +96,21 @@ const TimelineController = {
         // 获取当前选中的时间戳
         const reversedIndex = this.data.timestamps.length - 1 - this.elements.slider.value;
         const timestamp = this.data.timestamps[reversedIndex];
-        
+
         // 更新时间显示
         this.elements.sliderValue.textContent = this.formatTimestamp(timestamp);
-        
+
         // 清除之前的框线
         const highlights = document.querySelectorAll('.highlight');
         highlights.forEach(highlight => highlight.remove());
-        
+
         // 清除之前的文本标签
         const textLabels = document.querySelectorAll('.text-label');
         textLabels.forEach(textLabel => textLabel.remove());
-        
+
         // 清除之前的定时器
         clearTimeout(this.data.timeoutId);
-        
+
         // 设置新的定时器，延迟加载图片
         this.data.timeoutId = setTimeout(() => {
             this.elements.timestampImage.src = `/pictures/${timestamp}.webp`;
@@ -125,11 +125,11 @@ const TimelineController = {
     handleImageLoad: function() {
         const reversedIndex = this.data.timestamps.length - 1 - this.elements.slider.value;
         const timestamp = this.data.timestamps[reversedIndex];
-        
+
         // 保存图片尺寸
         this.data.imgWidth = this.elements.timestampImage.naturalWidth;
         this.data.imgHeight = this.elements.timestampImage.naturalHeight;
-        
+
         // 延时执行，确保图片完全加载
         setTimeout(() => {
             this.updateText(timestamp);
@@ -185,17 +185,17 @@ const TimelineController = {
     updateTimeNodePositions: function() {
         const sliderWidth = this.elements.slider.offsetWidth;
         const timeNodesContainer = document.getElementById('timeNodes');
-        
+
         if (!timeNodesContainer) return;
 
         this.elements.timeNodes.forEach(node => {
             const timestamp = parseInt(node.dataset.timestamp);
             const timestampIndex = this.data.timestamps.indexOf(timestamp);
-            
+
             if (timestampIndex !== -1) {
                 // 计算节点在滑块上的位置百分比
                 const position = ((this.data.timestamps.length - 1 - timestampIndex) / (this.data.timestamps.length - 1)) * 100;
-                
+
                 // 设置节点位置
                 node.style.left = `${position}%`;
             }
@@ -207,7 +207,7 @@ const TimelineController = {
      */
     initAppList: function() {
         if (!this.elements.appList) return;
-        
+
         const apps = this.elements.appList.children;
         const maxVisibleApps = Math.min(15, apps.length);
 
@@ -229,20 +229,25 @@ const TimelineController = {
     toggleApps: function() {
         const apps = this.elements.appList.children;
         const maxVisibleApps = Math.min(15, apps.length);
-        let isExpanded = this.elements.toggleAppsButton.textContent === '折叠';
+
+        // 获取展开/折叠文本
+        const expandText = this.elements.toggleAppsButton.getAttribute('data-expand-text') || '展开';
+        const collapseText = this.elements.toggleAppsButton.getAttribute('data-collapse-text') || '折叠';
+
+        let isExpanded = this.elements.toggleAppsButton.textContent === collapseText;
 
         if (isExpanded) {
             // 折叠应用列表
             for (let i = maxVisibleApps; i < apps.length; i++) {
                 apps[i].style.display = 'none';
             }
-            this.elements.toggleAppsButton.textContent = '展开';
+            this.elements.toggleAppsButton.textContent = expandText;
         } else {
             // 展开应用列表
             for (let i = 0; i < apps.length; i++) {
                 apps[i].style.display = 'inline-block';
             }
-            this.elements.toggleAppsButton.textContent = '折叠';
+            this.elements.toggleAppsButton.textContent = collapseText;
         }
     },
 
@@ -279,34 +284,34 @@ const TimelineController = {
         // 清除现有文本标签
         const textLabels = document.querySelectorAll('.text-label');
         textLabels.forEach(textLabel => textLabel.remove());
-        
+
         // 获取OCR数据
         const data = await this.fetchData(timestamp);
-        
+
         // 数据为空时，不执行下面的代码
         if (data.length === 0) {
             return;
         }
-        
+
         // 获取图片容器的尺寸
         const containerRect = this.elements.container.getBoundingClientRect();
         const containerWidth = containerRect.width;
         const containerHeight = containerRect.height;
-        
+
         // 计算缩放比例
         const scaleX = containerWidth / this.data.imgWidth;
         const scaleY = containerHeight / this.data.imgHeight;
-        
+
         // 处理每个OCR文本框
         data.forEach(item => {
             const { box, text } = item;
-            
+
             // 计算缩放后的坐标
             const scaledX = box[0] * scaleX;
             const scaledY = box[1] * scaleY;
             const scaledWidth = (box[2] - box[0]) * scaleX;
             const scaledHeight = (box[3] - box[1]) * scaleY;
-            
+
             // 创建高亮框
             const highlight = document.createElement('div');
             highlight.className = 'highlight';
@@ -314,7 +319,7 @@ const TimelineController = {
             highlight.style.top = `${scaledY}px`;
             highlight.style.width = `${scaledWidth}px`;
             highlight.style.height = `${scaledHeight}px`;
-            
+
             // 创建文本标签
             const textLabel = document.createElement('div');
             textLabel.className = 'text-label';
@@ -322,7 +327,7 @@ const TimelineController = {
             textLabel.style.left = `${scaledX}px`;
             textLabel.style.top = `${scaledY + scaledHeight}px`;
             textLabel.style.maxWidth = `${scaledWidth * 2}px`;
-            
+
             // 添加点击事件，实现复制文本功能
             textLabel.addEventListener('click', function() {
                 const textArea = document.createElement('textarea');
@@ -331,11 +336,11 @@ const TimelineController = {
                 textArea.select();
                 document.execCommand('copy');
                 document.body.removeChild(textArea);
-                
+
                 // 显示复制成功提示
                 const toast = document.createElement('div');
                 toast.className = 'toast';
-                toast.textContent = '文本已复制';
+                toast.textContent = document.body.getAttribute('data-text-copied') || '文本已复制';
                 toast.style.position = 'fixed';
                 toast.style.bottom = '20px';
                 toast.style.left = '50%';
@@ -346,13 +351,13 @@ const TimelineController = {
                 toast.style.borderRadius = '5px';
                 toast.style.zIndex = '9999';
                 document.body.appendChild(toast);
-                
+
                 // 2秒后移除提示
                 setTimeout(() => {
                     document.body.removeChild(toast);
                 }, 2000);
             });
-            
+
             // 将元素添加到页面中
             this.elements.container.appendChild(highlight);
             this.elements.container.appendChild(textLabel);
@@ -368,12 +373,14 @@ const TimelineController = {
         try {
             const response = await fetch('/get_ocr_text/' + timestamp);
             if (!response.ok) {
-                throw new Error('网络响应错误');
+                const errorMessage = document.body.getAttribute('data-network-error') || '网络响应错误';
+                throw new Error(errorMessage);
             }
             const data = await response.json();
             return data;
         } catch (error) {
-            console.error('获取数据失败:', error);
+            const errorPrefix = document.body.getAttribute('data-fetch-error') || '获取数据失败';
+            console.error(`${errorPrefix}:`, error);
             return [];
         }
     }
@@ -387,10 +394,10 @@ document.addEventListener('DOMContentLoaded', function() {
         const timestamps = JSON.parse(timestampsElement.dataset.timestamps);
         TimelineController.init(timestamps);
     }
-    
+
     // 显示闪屏模态框（如果存在）
     const flashModal = document.getElementById('flashModal');
     if (flashModal) {
-        new bootstrap.Modal(flashModal).show();
+        $('#flashModal').modal('show');
     }
 });
