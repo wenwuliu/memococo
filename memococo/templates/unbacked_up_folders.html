@@ -12,10 +12,14 @@
           <i class="bi bi-image"></i>  {{ folder_info.image_count }}
         </span>
         <span class="badge badge-secondary badge-pill">{{ folder_info.folder_size }} ➡ {{ '%.2f' % (folder_info.image_count * 0.028) }}M </span>
+        {% if not folder_info.is_today %}
         <form action="{{ url_for('compress_folder') }}" method="post" id="compress-form-{{ loop.index }}">
           <input type="hidden" name="folder" value="{{ folder_info.folder }}">
           <button type="submit" class="btn btn-primary">压缩</button>
         </form>
+        {% else %}
+        <span class="badge badge-info">不可压缩</span>
+        {% endif %}
       </li>
     {% endfor %}
   </ul>
@@ -24,34 +28,39 @@
 <script>
   document.addEventListener('DOMContentLoaded', function() {
     {% for folder in folders %}
-    document.getElementById('compress-form-{{ loop.index }}').addEventListener('submit', function(event) {
-      event.preventDefault();
-      var form = event.target;
-      var data = {
-        folder: form.elements['folder'].value
-      };
-      fetch(form.action, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(data)
-      }).then(response => {
-        if (!response.ok) {
-          throw new Error('Network response was not ok ' + response.statusText);
-        }
-        return response.json();
-      }).then(data => {
-        // 处理响应数据
-        console.log(data);
-      }).catch(error => {
-        console.error('There has been a problem with your fetch operation:', error);
+    {% if not folder.is_today %}
+    var formElement = document.getElementById('compress-form-{{ loop.index }}');
+    if (formElement) {
+      formElement.addEventListener('submit', function(event) {
+        event.preventDefault();
+        var form = event.target;
+        var data = {
+          folder: form.elements['folder'].value
+        };
+        fetch(form.action, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(data)
+        }).then(response => {
+          if (!response.ok) {
+            throw new Error('Network response was not ok ' + response.statusText);
+          }
+          return response.json();
+        }).then(data => {
+          // 处理响应数据
+          console.log(data);
+        }).catch(error => {
+          console.error('There has been a problem with your fetch operation:', error);
+        });
+        //提交表单后等待2s，然后刷新页面
+        setTimeout(function() {
+          location.reload();
+        }, 2000);
       });
-      //提交表单后等待2s，然后刷新页面
-      setTimeout(function() {
-        location.reload();
-      }, 2000);
-    })
+    }
+    {% endif %}
     {% endfor %}
   });
 </script>

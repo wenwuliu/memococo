@@ -559,6 +559,10 @@ def get_cpu_temperature():
 
 
 def get_unbacked_up_folders():
+    # 获取当前日期
+    today = datetime.datetime.now().strftime("%Y/%m/%d")
+    today_path = today.replace("/", os.sep)
+
     # 获取 screenshots_path 下的所有文件夹
     all_folders = get_folder_paths(screenshots_path, 0, 30)
     # 筛选出未备份的文件夹
@@ -569,10 +573,13 @@ def get_unbacked_up_folders():
     # 查询未备份文件夹的图片数量以及文件夹大小
     for folder in unbacked_up_folders:
         tool = ImageVideoTool(folder)
+        # 检查是否为当天的文件夹
+        is_today = today_path in folder
         folder_info.append({
             "folder": folder,
             "image_count": tool.get_image_count(),
-            "folder_size": tool.get_folder_size()
+            "folder_size": tool.get_folder_size(),
+            "is_today": is_today  # 添加当天标记
         })
     return folder_info
 

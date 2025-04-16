@@ -463,7 +463,7 @@ def record_screenshots_thread(ignored_apps, ignored_apps_updated, save_power=Tru
             # 检查CPU使用率和温度
             cpu_usage = psutil.cpu_percent(interval=1)
             cpu_temperature = get_cpu_temperature()
-            if cpu_usage > 70 or (cpu_temperature is not None and cpu_temperature > 70):
+            if power_saving_mode(save_power) or cpu_usage > 70 or (cpu_temperature is not None and cpu_temperature > 70):
                 ocr_text = ''
             else:
                 #使用ocr处理
@@ -477,7 +477,7 @@ def record_screenshots_thread(ignored_apps, ignored_apps_updated, save_power=Tru
             
             
             # 如果启用压缩，先同步压缩图像，再保存到数据库
-            if enable_compress and not power_saving_mode(save_power) and cpu_usage < 70 and (cpu_temperature is None or cpu_temperature < 75):
+            if enable_compress and not power_saving_mode(save_power) and cpu_usage < 70 and (cpu_temperature is None or cpu_temperature < 70):
                 screenshot_logger.debug(f"开始压缩图像: {image_path}")
                 compress_start_time = time.time()
                 compress_img_PIL(image_path, target_size_kb=200)
