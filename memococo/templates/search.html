@@ -33,7 +33,7 @@
     </div>
 
     <!-- 存储搜索结果数据 -->
-    <div id="search-entries-data" data-entries="{{ entries|tojson }}" style="display: none;"></div>
+    <div id="search-entries-data" data-entries="{{ entries|default([])|tojson }}" style="display: none;"></div>
 {% endblock %}
 
 {% block page_scripts %}

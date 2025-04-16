@@ -203,15 +203,17 @@ def search():
 
     # 将Entry对象转换为可序列化的列表
     serialized_entries = []
-    for entry in entries:
-        serialized_entries.append([
-            entry.id,
-            entry.app,
-            entry.title,
-            entry.text,
-            entry.timestamp,
-            entry.jsontext
-        ])
+    if entries:  # 确保条目列表不为空
+        for entry in entries:
+            serialized_entries.append([
+                entry.id,
+                entry.app,
+                entry.title,
+                entry.text,
+                entry.timestamp,
+                entry.jsontext
+            ])
+    main_logger.info(f"Serialized {len(serialized_entries)} entries for search results")
 
     # 渲染搜索结果页面
     return render_template(
