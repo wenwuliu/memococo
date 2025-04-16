@@ -3,11 +3,17 @@ import sys
 import argparse
 import toml
 
+# 导入共用模块
+from memococo.common.config_manager import get_app_data_folder
+from memococo.common.file_utils import ensure_directory_exists
+
+# 应用信息
 app_name_cn = "时光胶囊"
 app_name_en = "MemoCoco"
 main_app_name = app_name_en
-app_version = "2.2.2"
+app_version = "2.2.3"
 
+# 命令行参数解析
 parser = argparse.ArgumentParser(description=main_app_name)
 
 parser.add_argument(
@@ -25,35 +31,11 @@ parser.add_argument(
 
 args = parser.parse_args()
 
-
-def get_appdata_folder(app_name=main_app_name):
-    if sys.platform == "win32":
-        appdata = os.getenv("APPDATA")
-        if not appdata:
-            raise EnvironmentError("APPDATA environment variable is not set.")
-        path = os.path.join(appdata, app_name)
-    elif sys.platform == "darwin":
-        home = os.path.expanduser("~")
-        path = os.path.join(home, "Library", "Application Support", app_name)
-    else:
-        home = os.path.expanduser("~")
-        path = os.path.join(home, ".local", "share", app_name)
-    if not os.path.exists(path):
-        os.makedirs(path)
-    return path
-
-def create_directory_if_not_exists(path):
-    try:
-        if not os.path.exists(path):
-            os.makedirs(path)
-    except Exception as e:
-        print(f"创建目录失败，错误信息：{e}")
-
-
+# 确定应用数据目录
 if args.storage_path:
     appdata_folder = args.storage_path
 else:
-    appdata_folder = get_appdata_folder()
+    appdata_folder = get_app_data_folder(main_app_name)
 
 def get_settings():
     # 从appdata_folder中加载配置文件config.toml
@@ -94,61 +76,20 @@ default_ignored_apps = [
 db_path = os.path.join(appdata_folder, f"{app_name_en}.db")
 screenshots_path = os.path.join(appdata_folder, "screenshots")
 
-create_directory_if_not_exists(screenshots_path)
+# 确保目录存在
+ensure_directory_exists(screenshots_path)
 
-# logger配置
-import logging
-from logging.handlers import RotatingFileHandler
+# 日志配置
+from memococo.common.logging import initialize_logging, get_logger
 
-# 创建日志格式器
-main_formatter = logging.Formatter('%(asctime)s - [MAIN] - %(levelname)s - %(message)s')
-screenshot_formatter = logging.Formatter('%(asctime)s - [SCREENSHOT] - %(levelname)s - %(message)s')
-ocr_formatter = logging.Formatter('%(asctime)s - [OCR] - %(levelname)s - %(message)s')
-
-# 创建日志文件处理器
+# 初始化日志记录
 log_file = os.path.join(appdata_folder, "memococo.log")
+initialize_logging(log_file)
 
-# 创建主应用日志对象
-main_logger = logging.getLogger("memococo.main")
-main_logger.setLevel(logging.DEBUG)
-
-main_console = logging.StreamHandler()
-main_console.setLevel(logging.INFO)
-main_console.setFormatter(main_formatter)
-main_logger.addHandler(main_console)
-
-main_file = RotatingFileHandler(log_file, maxBytes=10*1024*1024, backupCount=1)
-main_file.setLevel(logging.DEBUG)
-main_file.setFormatter(main_formatter)
-main_logger.addHandler(main_file)
-
-# 创建截图模块日志对象
-screenshot_logger = logging.getLogger("memococo.screenshot")
-screenshot_logger.setLevel(logging.DEBUG)
-
-screenshot_console = logging.StreamHandler()
-screenshot_console.setLevel(logging.INFO)
-screenshot_console.setFormatter(screenshot_formatter)
-screenshot_logger.addHandler(screenshot_console)
-
-screenshot_file = RotatingFileHandler(log_file, maxBytes=10*1024*1024, backupCount=1)
-screenshot_file.setLevel(logging.DEBUG)
-screenshot_file.setFormatter(screenshot_formatter)
-screenshot_logger.addHandler(screenshot_file)
-
-# 创建OCR模块日志对象
-ocr_logger = logging.getLogger("memococo.ocr")
-ocr_logger.setLevel(logging.DEBUG)
-
-ocr_console = logging.StreamHandler()
-ocr_console.setLevel(logging.INFO)
-ocr_console.setFormatter(ocr_formatter)
-ocr_logger.addHandler(ocr_console)
-
-ocr_file = RotatingFileHandler(log_file, maxBytes=10*1024*1024, backupCount=1)
-ocr_file.setLevel(logging.DEBUG)
-ocr_file.setFormatter(ocr_formatter)
-ocr_logger.addHandler(ocr_file)
+# 获取日志对象
+main_logger = get_logger("memococo.main", "main")
+screenshot_logger = get_logger("memococo.screenshot", "screenshot")
+ocr_logger = get_logger("memococo.ocr", "ocr")
 
 # 兼容旧代码
 logger = main_logger

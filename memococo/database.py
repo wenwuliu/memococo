@@ -1,42 +1,49 @@
+"""
+数据库操作模块
+
+提供数据库操作功能，包括创建、查询、更新和删除操作
+"""
+
 import sqlite3
 from collections import namedtuple
-from typing import List
+from typing import List, Optional, Tuple, Dict, Any
 
-from memococo.config import db_path
+from memococo.config import db_path, logger
+from memococo.common.db_manager import DatabaseManager
+from memococo.common.error_handler import DatabaseError, safe_call
 
+# 初始化数据库连接管理器
+DatabaseManager.initialize(db_path)
+
+# 定义数据结构
 Entry = namedtuple("Entry", ["id", "app", "title", "text", "timestamp", "jsontext"])
 
-def get_db_connection():
-    conn = sqlite3.connect(db_path)
-    # 启用外键约束
-    conn.execute("PRAGMA foreign_keys = ON")
-    # 设置超时时间，避免数据库锁定问题
-    conn.execute("PRAGMA busy_timeout = 5000")
-    return conn
-
-
 def create_db() -> None:
-    with get_db_connection() as conn:
-        c = conn.cursor()
-        # 创建主表
-        c.execute(
-            """CREATE TABLE IF NOT EXISTS entries
-               (id INTEGER PRIMARY KEY AUTOINCREMENT,
-                app TEXT,
-                title TEXT,
-                text TEXT,
-                timestamp INTEGER,
-                jsontext TEXT)"""
-        )
+    """创建数据库表和索引"""
+    try:
+        with DatabaseManager.transaction() as conn:
+            c = conn.cursor()
+            # 创建主表
+            c.execute(
+                """CREATE TABLE IF NOT EXISTS entries
+                   (id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    app TEXT,
+                    title TEXT,
+                    text TEXT,
+                    timestamp INTEGER,
+                    jsontext TEXT)"""
+            )
 
-        # 添加索引以提高查询性能
-        c.execute("CREATE INDEX IF NOT EXISTS idx_entries_timestamp ON entries(timestamp)")
-        c.execute("CREATE INDEX IF NOT EXISTS idx_entries_app ON entries(app)")
-        c.execute("CREATE INDEX IF NOT EXISTS idx_entries_text ON entries(text)")
+            # 添加索引以提高查询性能
+            c.execute("CREATE INDEX IF NOT EXISTS idx_entries_timestamp ON entries(timestamp)")
+            c.execute("CREATE INDEX IF NOT EXISTS idx_entries_app ON entries(app)")
+            c.execute("CREATE INDEX IF NOT EXISTS idx_entries_text ON entries(text)")
 
-        # 执行VACUUM操作优化数据库
-        c.execute("VACUUM")
-        conn.commit()
+            # 执行VACUUM操作优化数据库
+            c.execute("VACUUM")
+    except Exception as e:
+        logger.error(f"创建数据库失败: {e}")
+        raise DatabaseError(f"创建数据库失败: {e}")
 
 
 def get_all_entries(limit: int = 1000, offset: int = 0) -> List[Entry]:
@@ -49,14 +56,22 @@ def get_all_entries(limit: int = 1000, offset: int = 0) -> List[Entry]:
     Returns:
         条目列表
     """
-    with get_db_connection() as conn:
-        c = conn.cursor()
-        results = c.execute(
+    try:
+        results = DatabaseManager.execute(
             "SELECT * FROM entries ORDER BY timestamp DESC LIMIT ? OFFSET ?",
             (limit, offset)
-        ).fetchall()
-        return [Entry(*result) for result in results]
-
+        )
+        return [Entry(
+            result["id"],
+            result["app"],
+            result["title"],
+            result["text"],
+            result["timestamp"],
+            result["jsontext"]
+        ) for result in results]
+    except Exception as e:
+        logger.error(f"获取条目失败: {e}")
+        return []
 
 
 def get_timestamps() -> List[int]:
@@ -67,42 +82,78 @@ def get_timestamps() -> List[int]:
     Returns:
         所有时间戳列表
     """
-    with get_db_connection() as conn:
-        c = conn.cursor()
-        results = c.execute(
+    try:
+        results = DatabaseManager.execute(
             "SELECT timestamp FROM entries ORDER BY timestamp DESC"
-        ).fetchall()
-        return [result[0] for result in results]
+        )
+        return [result["timestamp"] for result in results]
+    except Exception as e:
+        logger.error(f"获取时间戳列表失败: {e}")
+        return []
+
 
 def get_ocr_text(timestamp: int) -> str:
-    with get_db_connection() as conn:
-        c = conn.cursor()
-        result = c.execute(
+    """获取指定时间戳的OCR文本
+
+    Args:
+        timestamp: 时间戳
+
+    Returns:
+        OCR文本
+    """
+    try:
+        results = DatabaseManager.execute(
             "SELECT text FROM entries WHERE timestamp = ?", (timestamp,)
-        ).fetchone()
-        return result[0] if result else ""
+        )
+        return results[0]["text"] if results else ""
+    except Exception as e:
+        logger.error(f"获取OCR文本失败: {e}")
+        return ""
 
-def get_unique_apps() ->List[str]:
-    with get_db_connection() as conn:
-        c = conn.cursor()
-        results = c.execute(
+
+def get_unique_apps() -> List[str]:
+    """获取唯一的应用程序列表
+
+    Returns:
+        应用程序列表
+    """
+    try:
+        results = DatabaseManager.execute(
             "SELECT app, COUNT(*) as count FROM entries GROUP BY app ORDER BY count DESC"
-        ).fetchall()
+        )
         # 去掉空的内容
-        return [result[0] for result in results if result[0]]
+        return [result["app"] for result in results if result["app"]]
+    except Exception as e:
+        logger.error(f"获取应用程序列表失败: {e}")
+        return []
 
-def get_newest_empty_text() -> Entry:
+
+def get_newest_empty_text() -> Optional[Entry]:
     """获取最新的空文本条目
 
     Returns:
         最新的空文本条目，如果没有则返回None
     """
-    with get_db_connection() as conn:
-        c = conn.cursor()
-        result = c.execute(
+    try:
+        results = DatabaseManager.execute(
             "SELECT * FROM entries WHERE text = '' or text IS NULL ORDER BY timestamp DESC LIMIT 1"
-        ).fetchone()
-        return Entry(*result) if result else None
+        )
+        if not results:
+            return None
+        
+        result = results[0]
+        return Entry(
+            result["id"],
+            result["app"],
+            result["title"],
+            result["text"],
+            result["timestamp"],
+            result["jsontext"]
+        )
+    except Exception as e:
+        logger.error(f"获取最新空文本条目失败: {e}")
+        return None
+
 
 def get_empty_text_count() -> int:
     """获取需要OCR的条目总数
@@ -110,12 +161,15 @@ def get_empty_text_count() -> int:
     Returns:
         需要OCR的条目总数
     """
-    with get_db_connection() as conn:
-        c = conn.cursor()
-        result = c.execute(
-            "SELECT COUNT(*) FROM entries WHERE text = '' or text IS NULL"
-        ).fetchone()
-        return result[0] if result else 0
+    try:
+        results = DatabaseManager.execute(
+            "SELECT COUNT(*) as count FROM entries WHERE text = '' or text IS NULL"
+        )
+        return results[0]["count"] if results else 0
+    except Exception as e:
+        logger.error(f"获取空文本条目数量失败: {e}")
+        return 0
+
 
 def get_batch_empty_text(batch_size: int = 5, oldest_first: bool = True) -> List[Entry]:
     """批量获取空文本条目
@@ -129,38 +183,50 @@ def get_batch_empty_text(batch_size: int = 5, oldest_first: bool = True) -> List
     Returns:
         空文本条目列表
     """
-    with get_db_connection() as conn:
-        c = conn.cursor()
+    try:
         # 根据参数决定排序方式
         order = "ASC" if oldest_first else "DESC"
-        results = c.execute(
+        results = DatabaseManager.execute(
             f"SELECT * FROM entries WHERE text = '' or text IS NULL ORDER BY timestamp {order} LIMIT ?",
             (batch_size,)
-        ).fetchall()
-        return [Entry(*result) for result in results]
+        )
+        return [Entry(
+            result["id"],
+            result["app"],
+            result["title"],
+            result["text"],
+            result["timestamp"],
+            result["jsontext"]
+        ) for result in results]
+    except Exception as e:
+        logger.error(f"批量获取空文本条目失败: {e}")
+        return []
 
-def get_empty_text_timestamp_range() -> tuple:
+
+def get_empty_text_timestamp_range() -> Tuple[Optional[int], Optional[int]]:
     """获取未OCR条目的时间戳范围
 
     Returns:
         (最早时间戳, 最新时间戳)的元组，如果没有未OCR条目则返回(None, None)
     """
-    with get_db_connection() as conn:
-        c = conn.cursor()
+    try:
         # 获取最早的未OCR条目时间戳
-        min_result = c.execute(
-            "SELECT MIN(timestamp) FROM entries WHERE text = '' or text IS NULL"
-        ).fetchone()
+        min_results = DatabaseManager.execute(
+            "SELECT MIN(timestamp) as min_timestamp FROM entries WHERE text = '' or text IS NULL"
+        )
+        min_timestamp = min_results[0]["min_timestamp"] if min_results else None
 
         # 获取最新的未OCR条目时间戳
-        max_result = c.execute(
-            "SELECT MAX(timestamp) FROM entries WHERE text = '' or text IS NULL"
-        ).fetchone()
-
-        min_timestamp = min_result[0] if min_result and min_result[0] is not None else None
-        max_timestamp = max_result[0] if max_result and max_result[0] is not None else None
+        max_results = DatabaseManager.execute(
+            "SELECT MAX(timestamp) as max_timestamp FROM entries WHERE text = '' or text IS NULL"
+        )
+        max_timestamp = max_results[0]["max_timestamp"] if max_results else None
 
         return (min_timestamp, max_timestamp)
+    except Exception as e:
+        logger.error(f"获取未OCR条目时间戳范围失败: {e}")
+        return (None, None)
+
 
 def get_empty_text_in_range(start_timestamp: int, end_timestamp: int, limit: int = 10) -> List[Entry]:
     """获取指定时间范围内的未OCR条目
@@ -173,49 +239,88 @@ def get_empty_text_in_range(start_timestamp: int, end_timestamp: int, limit: int
     Returns:
         指定时间范围内的未OCR条目列表，按时间戳升序排序
     """
-    with get_db_connection() as conn:
-        c = conn.cursor()
-        results = c.execute(
+    try:
+        results = DatabaseManager.execute(
             "SELECT * FROM entries WHERE (text = '' or text IS NULL) AND timestamp >= ? AND timestamp <= ? ORDER BY timestamp ASC LIMIT ?",
             (start_timestamp, end_timestamp, limit)
-        ).fetchall()
-        return [Entry(*result) for result in results]
+        )
+        return [Entry(
+            result["id"],
+            result["app"],
+            result["title"],
+            result["text"],
+            result["timestamp"],
+            result["jsontext"]
+        ) for result in results]
+    except Exception as e:
+        logger.error(f"获取指定时间范围内的未OCR条目失败: {e}")
+        return []
 
-def update_entry_text(entry_id: int, text: str, jsontext: str) -> None:
+
+def update_entry_text(entry_id: int, text: str, jsontext: str) -> bool:
+    """更新条目文本
+
+    Args:
+        entry_id: 条目ID
+        text: 文本内容
+        jsontext: JSON文本
+
+    Returns:
+        操作是否成功
+    """
     try:
-        with get_db_connection() as conn:
-            c = conn.cursor()
-            c.execute(
-                "UPDATE entries SET text = ?, jsontext = ? WHERE id = ?",
-                (text, jsontext, entry_id),
-            )
-            conn.commit()
-    except sqlite3.OperationalError as e:
-        print("Error updating entry:", e)
+        DatabaseManager.execute(
+            "UPDATE entries SET text = ?, jsontext = ? WHERE id = ?",
+            (text, jsontext, entry_id)
+        )
+        return True
+    except Exception as e:
+        logger.error(f"更新条目文本失败: {e}")
+        return False
 
-def remove_entry(entry_id: int) -> None:
+
+def remove_entry(entry_id: int) -> bool:
+    """删除条目
+
+    Args:
+        entry_id: 条目ID
+
+    Returns:
+        操作是否成功
+    """
     try:
-        with get_db_connection() as conn:
-            c = conn.cursor()
-            c.execute("DELETE FROM entries WHERE id = ?", (entry_id,))
-            conn.commit()
-    except sqlite3.OperationalError as e:
-        print("Error removing entry:", e)
+        DatabaseManager.execute(
+            "DELETE FROM entries WHERE id = ?",
+            (entry_id,)
+        )
+        return True
+    except Exception as e:
+        logger.error(f"删除条目失败: {e}")
+        return False
 
 
-def insert_entry(
-    jsontext: str, timestamp: int, text: str, app: str, title: str
-) -> None:
+def insert_entry(jsontext: str, timestamp: int, text: str, app: str, title: str) -> bool:
+    """插入条目
+
+    Args:
+        jsontext: JSON文本
+        timestamp: 时间戳
+        text: 文本内容
+        app: 应用程序名称
+        title: 标题
+
+    Returns:
+        操作是否成功
+    """
     try:
-        with get_db_connection() as conn:
-            c = conn.cursor()
-            c.execute(
-                "INSERT INTO entries (jsontext, timestamp, text, app, title) VALUES (?, ?, ?, ?, ?)",
-                (jsontext, timestamp, text, app, title),
-            )
-            conn.commit()
-    except sqlite3.OperationalError as e:
-        print("Error inserting entry:", e)
+        DatabaseManager.execute(
+            "INSERT INTO entries (jsontext, timestamp, text, app, title) VALUES (?, ?, ?, ?, ?)",
+            (jsontext, timestamp, text, app, title)
+        )
+        return True
+    except Exception as e:
+        logger.error(f"插入条目失败: {e}")
+        return False
 
 
 def search_entries(keywords: List[str], app: str = None, limit: int = 100, offset: int = 0) -> List[Entry]:
@@ -230,9 +335,7 @@ def search_entries(keywords: List[str], app: str = None, limit: int = 100, offse
     Returns:
         符合条件的条目列表
     """
-    with get_db_connection() as conn:
-        c = conn.cursor()
-
+    try:
         # 构建基本查询
         query = "SELECT * FROM entries WHERE "
         params = []
@@ -257,8 +360,26 @@ def search_entries(keywords: List[str], app: str = None, limit: int = 100, offse
         query += " ORDER BY timestamp DESC LIMIT ? OFFSET ?"
         params.extend([limit, offset])
 
-        results = c.execute(query, params).fetchall()
-        return [Entry(*result) for result in results]
+        results = DatabaseManager.execute(query, tuple(params))
+        return [Entry(
+            result["id"],
+            result["app"],
+            result["title"],
+            result["text"],
+            result["timestamp"],
+            result["jsontext"]
+        ) for result in results]
+    except Exception as e:
+        logger.error(f"搜索条目失败: {e}")
+        return []
+
+
+def close_db_connections():
+    """关闭所有数据库连接"""
+    try:
+        DatabaseManager.close_all()
+    except Exception as e:
+        logger.error(f"关闭数据库连接失败: {e}")
 
 
 # 注意：数据清理功能已移除，以确保数据持久保存
