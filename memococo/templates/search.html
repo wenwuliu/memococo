@@ -62,9 +62,9 @@
                 colDiv.innerHTML = `
                     <div class="card rounded-lg">
                         <a href="#" data-toggle="modal" data-target="#modal-${start + index}">
-                            <img src="/pictures/${entry[4]}.webp" alt="Image" class="card-img-top">
+                            <img data-src="/pictures/${entry[4]}.webp" alt="Image" class="card-img-top lazy-load responsive-img">
                         </a>
-                        <div class="card-footer text-muted text-center" style="background-color: #f8f9fa;">
+                        <div class="card-footer text-muted text-center">
                             ${formattedDate}
                         </div>
                     </div>
@@ -90,7 +90,7 @@
                                 </div>
                                 <div class="modal-body" style="padding: 0; position: relative;">
                                     <div class="image-container" style="width: 100%; height: 100%;">
-                                        <img src="/pictures/${entry[4]}.webp" alt="Image" style="width: 100%; height: 100%; object-fit: contain; margin: 0 auto;">
+                                        <img src="/pictures/${entry[4]}.webp" alt="Image" class="no-lazy responsive-img" style="width: 100%; height: 100%; object-fit: contain; margin: 0 auto;">
                                     </div>
 
                                     <!-- 文本显示区域 -->
@@ -420,5 +420,28 @@
 
         renderPage(currentPage);
         renderPagination();
+
+        // 初始化懒加载
+        document.addEventListener('DOMContentLoaded', function() {
+            if (window.lazyLoader) {
+                window.lazyLoader.refresh();
+            }
+        });
+
+        // 切换页面后重新初始化懒加载
+        function refreshLazyLoad() {
+            if (window.lazyLoader) {
+                setTimeout(() => {
+                    window.lazyLoader.refresh();
+                }, 100);
+            }
+        }
+
+        // 在页面切换后刷新懒加载
+        const originalChangePage = changePage;
+        changePage = function(page) {
+            originalChangePage(page);
+            refreshLazyLoad();
+        };
     </script>
 {% endblock %}

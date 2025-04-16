@@ -1,15 +1,22 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="zh-CN">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="description" content="MemoCoco - 时光胶囊，记录你的屏幕活动">
+  <meta name="theme-color" content="#4CAF50">
   <title>{{ app_name }}</title>
   <!-- icon -->
-   <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}" type="image/x-icon">
-   <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}">
+  <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}" type="image/x-icon">
+  <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}">
   <!-- Bootstrap CSS -->
   <link href="{{ url_for('static', filename='bootstrap.min.css') }}" rel="stylesheet">
   <link rel="stylesheet" href="{{ url_for('static', filename='bootstrap-icons.css') }}">
+  <!-- 响应式设计CSS -->
+  <link rel="stylesheet" href="{{ url_for('static', filename='responsive.css') }}">
+  <!-- 预加载关键资源 -->
+  <link rel="preload" href="{{ url_for('static', filename='bootstrap.min.js') }}" as="script">
+  <link rel="preload" href="{{ url_for('static', filename='jquery.min.js') }}" as="script">
   <style>
     .highlight {
         border: 2px solid red;
@@ -215,5 +222,61 @@
   <script src="{{ url_for('static', filename='popper.min.js') }}"></script>
   <script src="{{ url_for('static', filename='bootstrap.min.js') }}"></script>
 
+  <!-- 响应式设计JS -->
+  <script src="{{ url_for('static', filename='lazy-load.js') }}"></script>
+  <script src="{{ url_for('static', filename='theme-switcher.js') }}"></script>
+
+  <!-- 主题切换按钮 -->
+  <div class="theme-switcher-container">
+    <button id="theme-toggle" class="btn btn-sm btn-outline-secondary rounded-circle">
+      <i class="bi bi-sun"></i>
+    </button>
+  </div>
+
+  <script>
+    // 初始化主题切换按钮
+    document.addEventListener('DOMContentLoaded', function() {
+      const themeToggle = document.getElementById('theme-toggle');
+      const themeIcon = themeToggle.querySelector('i');
+
+      // 根据当前主题更新图标
+      function updateThemeIcon() {
+        const theme = themeSwitcher.getEffectiveTheme();
+        if (theme === 'dark') {
+          themeIcon.className = 'bi bi-moon';
+        } else {
+          themeIcon.className = 'bi bi-sun';
+        }
+      }
+
+      // 初始更新图标
+      updateThemeIcon();
+
+      // 点击切换主题
+      themeToggle.addEventListener('click', function() {
+        themeSwitcher.toggleTheme();
+        updateThemeIcon();
+      });
+
+      // 监听主题变更事件
+      window.addEventListener('themechange', updateThemeIcon);
+
+      // 将所有图片转换为懒加载格式
+      const images = document.querySelectorAll('img:not(.no-lazy)');
+      images.forEach(img => {
+        if (!img.classList.contains('lazy-load')) {
+          const src = img.src;
+          img.setAttribute('data-src', src);
+          img.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1 1"%3E%3C/svg%3E';
+          img.classList.add('lazy-load');
+        }
+      });
+
+      // 初始化懒加载
+      if (window.lazyLoader) {
+        window.lazyLoader.refresh();
+      }
+    });
+  </script>
 </body>
 </html>
