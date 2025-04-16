@@ -346,6 +346,8 @@ class ErrorHandler:
             装饰器函数
         """
         def decorator(func):
+            from functools import wraps
+            @wraps(func)
             def wrapper(*args, **kwargs):
                 try:
                     return func(*args, **kwargs)
