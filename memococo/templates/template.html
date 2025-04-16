@@ -19,6 +19,31 @@
   <!-- 预加载关键资源 -->
   <link rel="preload" href="{{ url_for('static', filename='bootstrap.min.js') }}" as="script">
   <link rel="preload" href="{{ url_for('static', filename='jquery.min.js') }}" as="script">
+
+  <!-- 页面渲染前应用主题，避免闪烁 -->
+  <script>
+    (function() {
+      // 获取存储的主题
+      let theme;
+      try {
+        theme = localStorage.getItem('memococo-theme');
+      } catch (e) {
+        theme = 'light';
+      }
+
+      // 如果是系统主题，检查系统设置
+      if (theme === 'system') {
+        const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+        if (prefersDark) {
+          document.documentElement.classList.add('dark-mode');
+        }
+      }
+      // 如果是暗色主题，直接应用
+      else if (theme === 'dark') {
+        document.documentElement.classList.add('dark-mode');
+      }
+    })();
+  </script>
 </head>
 <body data-text-copied="{{ _('text_copied') }}" data-network-error="{{ _('error_network') }}" data-fetch-error="{{ _('error_fetch_data') }}">
 {% from 'components/language_switcher.html' import language_switcher %}

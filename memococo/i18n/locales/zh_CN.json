@@ -21,6 +21,13 @@
   "settings_save": "保存设置",
   "settings_reset": "重置设置",
   "settings_saved": "设置已保存",
+  "settings_use_ollama": "使用Ollama",
+  "settings_select_use_ollama": "请选择是否使用Ollama",
+  "settings_model": "模型",
+  "settings_enter_model": "请输入模型",
+  "settings_ignored_apps": "忽略的应用",
+  "settings_enter_ignored_apps": "请输入要忽略的应用",
+  "settings_ignored_apps_help": "输入要忽略的应用程序名称，用逗号分隔",
 
   "theme_light": "明亮模式",
   "theme_dark": "暗黑模式",
@@ -47,7 +54,8 @@
   "folders_compressing": "压缩中...",
   "folders_compressed": "压缩完成",
   "folders_today": "当天文件夹，不可压缩",
-  "folders_image_count": "图片数量",
+  "folders_image_count": "图片",
+  "folders_backup_link": "文件夹备份",
 
   "time_just_now": "刚刚",
   "time_minutes_ago": "{minutes}分钟前",

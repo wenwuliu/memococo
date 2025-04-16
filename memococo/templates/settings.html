@@ -2,39 +2,39 @@
 {% block content %}
 <!-- 在 settings.html 中 -->
 <form method="POST" class="needs-validation" style="width:60%;margin:auto;align:center" novalidate>
-    <h2>Settings</h2>
+    <h2>{{ _('settings_title') }}</h2>
     <div class="mb-3">
-      <label for="model" class="form-label">Use Ollama</label>
+      <label for="use_ollama" class="form-label">{{ _('settings_use_ollama') }}</label>
       <select class="form-control" id="use_ollama" name="use_ollama" required>
         <option value="True" {% if settings['use_ollama'] == 'True' %}selected{% endif %}>True</option>
         <option value="False" {% if settings['use_ollama'] == 'False' %}selected{% endif %}>False</option>
       </select>
       <div class="invalid-feedback">
-        Please select use ollama.
+        {{ _('settings_select_use_ollama') }}
       </div>
     </div>
     <div class="mb-3">
-      <label for="model" class="form-label">Model</label>
+      <label for="model" class="form-label">{{ _('settings_model') }}</label>
       <input type="text" class="form-control" id="model" name="model" value="{{ settings['model'] }}" required>
       <div class="invalid-feedback">
-        Please enter a model.
+        {{ _('settings_enter_model') }}
       </div>
     </div>
     <!-- OCR 工具选择已移除，默认使用 RapidOCR -->
     <div class="mb-3">
-      <label for="ignored_apps" class="form-label">Ignored Apps</label>
+      <label for="ignored_apps" class="form-label">{{ _('settings_ignored_apps') }}</label>
       <input type="text" class="form-control" id="ignored_apps" name="ignored_apps" value="{{ ', '.join(settings['ignored_apps']) }}" required>
       <div class="invalid-feedback">
-        Please enter ignored apps.
+        {{ _('settings_enter_ignored_apps') }}
       </div>
-      <small class="form-text text-muted">输入要忽略的应用程序名称，用逗号分隔</small>
+      <small class="form-text text-muted">{{ _('settings_ignored_apps_help') }}</small>
     </div>
 
     <!-- 数据清理功能已移除，以确保数据持久保存 -->
 
-    <button type="submit" class="btn btn-primary">保存设置</button>
+    <button type="submit" class="btn btn-primary">{{ _('settings_save') }}</button>
   </form>
   <div style="margin-top: 20px;align:center">
-  <a href="{{ url_for('unbacked_up_folders') }}" class="btn btn-primary">日志文件夹备份</a>
+  <a href="{{ url_for('unbacked_up_folders') }}" class="btn btn-primary">{{ _('folders_backup_link') }}</a>
   </div>
 {% endblock %}

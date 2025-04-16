@@ -256,6 +256,19 @@
 }
 
 /* 暗黑模式样式 */
+html.dark-mode,
+html.dark-mode body {
+    background-color: #121212;
+    color: #f8f9fa;
+    transition: background-color 0.2s ease-in-out, color 0.2s ease-in-out;
+}
+
+body.dark-mode,
+html.dark-mode body {
+    background-color: #121212;
+    color: #f8f9fa;
+}
+
 body.dark-mode .slider {
     background: #444;
 }

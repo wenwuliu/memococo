@@ -21,6 +21,13 @@
   "settings_save": "Save Settings",
   "settings_reset": "Reset Settings",
   "settings_saved": "Settings Saved",
+  "settings_use_ollama": "Use Ollama",
+  "settings_select_use_ollama": "Please select whether to use Ollama",
+  "settings_model": "Model",
+  "settings_enter_model": "Please enter a model",
+  "settings_ignored_apps": "Ignored Apps",
+  "settings_enter_ignored_apps": "Please enter ignored apps",
+  "settings_ignored_apps_help": "Enter app names to ignore, separated by commas",
 
   "theme_light": "Light Mode",
   "theme_dark": "Dark Mode",
@@ -47,7 +54,8 @@
   "folders_compressing": "Compressing...",
   "folders_compressed": "Compression Complete",
   "folders_today": "Today's folder, cannot be compressed",
-  "folders_image_count": "Image Count",
+  "folders_image_count": "Images",
+  "folders_backup_link": "Folder Backup",
 
   "time_just_now": "Just now",
   "time_minutes_ago": "{minutes} minutes ago",
