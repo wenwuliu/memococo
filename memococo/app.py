@@ -148,7 +148,7 @@ def search():
     else:
         # 使用Ollama提取关键词
         keywords = []
-        if get_settings()["use_ollama"] == "True":
+        if get_settings()["use_ollama"] == True or get_settings()["use_ollama"] == "True":
             main_logger.info(f"Using Ollama model: {get_settings()['model']}")
             extracted_keywords = extract_keywords_to_json(q, model=get_settings()["model"])
             if extracted_keywords:
@@ -201,10 +201,22 @@ def search():
     # 记录搜索结果数量
     main_logger.info(f"Found {len(entries)} results for search query")
 
+    # 将Entry对象转换为可序列化的列表
+    serialized_entries = []
+    for entry in entries:
+        serialized_entries.append([
+            entry.id,
+            entry.app,
+            entry.title,
+            entry.text,
+            entry.timestamp,
+            entry.jsontext
+        ])
+
     # 渲染搜索结果页面
     return render_template(
         "search.html",
-        entries=entries,
+        entries=serialized_entries,
         keywords=keywords,
         q=q,
         unique_apps=search_apps,
