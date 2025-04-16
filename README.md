@@ -173,6 +173,41 @@ sudo gem install fpm
 
 作为一个开源项目，我们欢迎来自社区的贡献。如果您想帮助改进 MemoCoco，请在我们的 GitHub 仓库上提交 Pull Request 或打开 Issue。
 
+### 开发环境设置
+
+```bash
+# 克隆仓库
+git clone https://github.com/liuwenwu520/MemoCoco.git
+cd MemoCoco
+
+# 安装开发依赖
+python3 scripts/setup_dev_env.py
+```
+
+### 代码风格
+
+我们使用了一系列工具来维护代码风格的一致性：
+
+- **black**：代码格式化
+- **isort**：导入语句排序
+- **flake8**：代码风格检查
+- **mypy**：类型检查
+- **pre-commit**：提交前检查
+
+请在提交代码前运行以下命令检查代码风格：
+
+```bash
+python3 scripts/format_code.py
+```
+
+或者使用 pre-commit 钩子自动检查：
+
+```bash
+pre-commit install  # 只需要运行一次
+```
+
+详细的代码风格规范请参考 [docs/code_style_guide.md](docs/code_style_guide.md)。
+
 ## 联系维护者
 
 liuawu625@163.com
