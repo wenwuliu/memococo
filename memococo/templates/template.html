@@ -20,9 +20,34 @@
   <link rel="preload" href="{{ url_for('static', filename='bootstrap.min.js') }}" as="script">
   <link rel="preload" href="{{ url_for('static', filename='jquery.min.js') }}" as="script">
 
+  <!-- 关键主题样式内联，完全避免闪烁 -->
+  <style>
+    /* 防止闪烁的关键样式 */
+    html, body {
+      transition: none !important;
+      background-color: #ffffff;
+      color: #212529;
+    }
+    html.dark-mode, html.dark-mode body, body.dark-mode {
+      background-color: #121212 !important;
+      color: #f8f9fa !important;
+    }
+    /* 隐藏内容直到完全加载 */
+    .content-wrapper {
+      opacity: 0;
+      transition: opacity 0.2s ease-in-out;
+    }
+    .content-loaded .content-wrapper {
+      opacity: 1;
+    }
+  </style>
+
   <!-- 页面渲染前应用主题，避免闪烁 -->
   <script>
     (function() {
+      // 阻止首次绘制，等待样式完全应用
+      document.documentElement.style.display = 'none';
+
       // 获取存储的主题
       let theme;
       try {
@@ -42,11 +67,18 @@
       else if (theme === 'dark') {
         document.documentElement.classList.add('dark-mode');
       }
+
+      // 允许渲染，但确保样式已应用
+      setTimeout(function() {
+        document.documentElement.style.display = '';
+      }, 0);
     })();
   </script>
 </head>
 <body data-text-copied="{{ _('text_copied') }}" data-network-error="{{ _('error_network') }}" data-fetch-error="{{ _('error_fetch_data') }}">
 {% from 'components/language_switcher.html' import language_switcher %}
+
+<div class="content-wrapper">
 
 <nav class="navbar navbar-light bg-light">
   <div class="container">
@@ -133,7 +165,18 @@
       if (window.lazyLoader) {
         window.lazyLoader.refresh();
       }
+
+      // 标记内容已加载，显示内容
+      document.body.classList.add('content-loaded');
     });
   </script>
+</div> <!-- .content-wrapper -->
+
+<script>
+  // 确保内容在页面加载后显示
+  window.addEventListener('load', function() {
+    document.body.classList.add('content-loaded');
+  });
+</script>
 </body>
 </html>
