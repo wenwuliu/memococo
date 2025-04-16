@@ -11,6 +11,8 @@ from memococo.screenshot import record_screenshots_thread
 from memococo.ocr_processor import start_ocr_processor
 from memococo.utils import human_readable_time, timestamp_to_human_readable, ImageVideoTool, check_port, get_unbacked_up_folders, get_total_size, count_unique_keywords
 from memococo.app_map import get_app_names_by_app_codes, get_app_code_by_app_name
+from memococo.common.error_handler import initialize_error_handler, with_error_handling, MemoCocoError, DatabaseError, FileError, SystemError
+from memococo.common.error_middleware import setup_error_handling
 import time
 
 # 全局变量
@@ -20,6 +22,12 @@ app.secret_key = 'uuid-14f9a9-4a8c-8e8a-9c4d-9f7b8f7b8f7b'
 # 设置Jinja2过滤器
 app.jinja_env.filters["human_readable_time"] = human_readable_time
 app.jinja_env.filters["timestamp_to_human_readable"] = timestamp_to_human_readable
+
+# 初始化错误处理器
+initialize_error_handler(logger=main_logger, show_in_console=True, show_in_ui=True)
+
+# 设置错误处理中间件
+error_middleware = setup_error_handling(app, logger=main_logger)
 
 # 创建共享变量
 ignored_apps = None
@@ -66,6 +74,7 @@ def favicon():
                                'favicon.ico', mimetype='image/vnd.microsoft.icon')
 
 @app.route("/")
+@with_error_handling({"route": "timeline"})
 def timeline():
     # connect to db
     timestamps = get_timestamps()
@@ -83,6 +92,7 @@ def timeline():
 
 
 @app.route("/search")
+@with_error_handling({"route": "search"})
 def search():
     """高级搜索功能，支持关键词和应用程序过滤
 
@@ -176,6 +186,7 @@ def search():
 
 
 @app.route("/settings", methods=["GET", "POST"])
+@with_error_handling({"route": "settings"})
 def settings():
     if request.method == "POST":
         # 获取表单数据
@@ -243,6 +254,7 @@ def get_ocr_text_by_timestamp(timestamp):
         return data
 
 @app.route("/unbacked_up_folders")
+@with_error_handling({"route": "unbacked_up_folders"})
 def unbacked_up_folders():
     folder_info = get_unbacked_up_folders()
     total_size = get_total_size()
@@ -256,6 +268,7 @@ def compress_folder_thread(folder):
     tool.images_to_video( sort_by="time")
 
 @app.route("/compress_folder", methods=["POST"])
+@with_error_handling({"route": "compress_folder"})
 def compress_folder():
     # 从请求的 JSON 数据中获取文件夹路径
     data = request.get_json()
@@ -291,51 +304,50 @@ def set_cpu_affinity(pid=None, cpu_list=None):
 
 # 注意：自动清理功能已移除，以确保数据持久保存
 
+@with_error_handling({"function": "initialize_app"})
 def initialize_app():
     """初始化应用程序
 
     初始化数据库、检查端口、启动必要的后台线程
     """
-    try:
-        # 初始化数据库
-        create_db()
-        main_logger.info(f"Database initialized successfully")
+    # 初始化数据库
+    create_db()
+    main_logger.info(f"Database initialized successfully")
 
-        # 检查应用数据目录
-        if not os.path.exists(appdata_folder):
-            os.makedirs(appdata_folder)
-            main_logger.info(f"Created appdata folder: {appdata_folder}")
-        else:
-            main_logger.info(f"Using existing appdata folder: {appdata_folder}")
+    # 检查应用数据目录
+    if not os.path.exists(appdata_folder):
+        os.makedirs(appdata_folder)
+        main_logger.info(f"Created appdata folder: {appdata_folder}")
+    else:
+        main_logger.info(f"Using existing appdata folder: {appdata_folder}")
 
-        # 检查截图目录
-        if not os.path.exists(screenshots_path):
-            os.makedirs(screenshots_path)
-            main_logger.info(f"Created screenshots folder: {screenshots_path}")
+    # 检查截图目录
+    if not os.path.exists(screenshots_path):
+        os.makedirs(screenshots_path)
+        main_logger.info(f"Created screenshots folder: {screenshots_path}")
 
-        # 检查端口可用性
-        if check_port(8842):
-            main_logger.error("Port 8842 is already in use. Please close the program that is using this port and try again.")
-            return False
+    # 检查端口可用性
+    if check_port(8842):
+        error_msg = "Port 8842 is already in use. Please close the program that is using this port and try again."
+        main_logger.error(error_msg)
+        raise SystemError(error_msg, {"port": 8842})
 
-        return True
-    except Exception as e:
-        main_logger.error(f"Error initializing application: {e}")
-        return False
+    return True
 
+@with_error_handling({"function": "start_background_threads"})
 def start_background_threads():
     """启动必要的后台线程
 
     启动截图记录线程和OCR处理线程
     """
-    try:
-        # 初始化共享变量
-        global ignored_apps, ignored_apps_updated
-        ignored_apps = Manager().list(get_settings().get("ignored_apps", []))
-        ignored_apps_updated = Event()
-        main_logger.info(f"Initialized shared variables with {len(ignored_apps)} ignored apps")
+    # 初始化共享变量
+    global ignored_apps, ignored_apps_updated
+    ignored_apps = Manager().list(get_settings().get("ignored_apps", []))
+    ignored_apps_updated = Event()
+    main_logger.info(f"Initialized shared variables with {len(ignored_apps)} ignored apps")
 
-        # 启动截图记录线程
+    # 启动截图记录线程
+    try:
         screenshot_thread = Thread(
             target=record_screenshots_thread,
             args=(ignored_apps, ignored_apps_updated, True, 5, True),
@@ -344,50 +356,48 @@ def start_background_threads():
         screenshot_thread.daemon = True
         screenshot_thread.start()
         main_logger.info("Screenshot recording thread started")
-
-        # 启动OCR处理线程
-        # ocr_thread = start_ocr_processor()
-        # main_logger.info("OCR processor thread started")
-
-        # 注意：自动清理功能已移除，以确保数据持久保存
-
-        # 设置CPU亲和性
-        set_cpu_affinity()
-
-        return True
     except Exception as e:
-        main_logger.error(f"Error starting background threads: {e}")
-        return False
+        error_msg = f"Failed to start screenshot thread: {e}"
+        main_logger.error(error_msg)
+        raise SystemError(error_msg, {"thread": "screenshot"}, e)
 
+    # 启动OCR处理线程
+    # ocr_thread = start_ocr_processor()
+    # main_logger.info("OCR processor thread started")
+
+    # 注意：自动清理功能已移除，以确保数据持久保存
+
+    # 设置CPU亲和性
+    try:
+        set_cpu_affinity()
+    except Exception as e:
+        # 亲和性设置失败不应该导致程序退出，只记录日志
+        main_logger.warning(f"Failed to set CPU affinity: {e}")
+
+    return True
+
+@with_error_handling({"function": "main"})
 def main():
     """主函数，用于启动应用程序
 
     这个函数会被 setup.py 中的 entry_points 调用
     """
+    # 显示应用程序信息
+    main_logger.info(f"Starting {app_name_cn} (MemoCoco) v{app_version}")
+
+    # 初始化应用
+    initialize_app()
+
+    # 启动后台线程
+    start_background_threads()
+
+    # 启动Flask应用
+    main_logger.info("Starting web server on port 8842")
     try:
-        # 显示应用程序信息
-        main_logger.info(f"Starting {app_name_cn} (MemoCoco) v{app_version}")
-
-        # 初始化应用
-        if not initialize_app():
-            main_logger.error("Failed to initialize application. Exiting...")
-            sys.exit(1)
-
-        # 启动后台线程
-        if not start_background_threads():
-            main_logger.error("Failed to start background threads. Exiting...")
-            sys.exit(1)
-
-        # 启动Flask应用
-        main_logger.info("Starting web server on port 8842")
         app.run(port=8842, threaded=True)
-
     except KeyboardInterrupt:
         main_logger.info("Application terminated by user")
         sys.exit(0)
-    except Exception as e:
-        main_logger.error(f"Unhandled exception: {e}")
-        sys.exit(1)
 
 if __name__ == "__main__":
     main()
