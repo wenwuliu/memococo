@@ -1,19 +1,32 @@
 from threading import Thread
-from flask import Flask, request, send_from_directory, redirect, url_for, render_template, flash, Response, jsonify
+from flask import Flask, request, send_from_directory, redirect, url_for, render_template, flash, Response, jsonify, session
 import sys
 import os
 import datetime
+import time
 from multiprocessing import Manager, Event
+from babel import Locale
+
+# 导入配置模块
 from memococo.config import appdata_folder, screenshots_path, app_name_cn, app_version, get_settings, save_settings, main_logger
+
+# 导入数据库模块
 from memococo.database import create_db, get_timestamps, get_unique_apps, get_ocr_text, search_entries
+
+# 导入功能模块
 from memococo.ollama import extract_keywords_to_json
 from memococo.screenshot import record_screenshots_thread
 from memococo.ocr_processor import start_ocr_processor
 from memococo.utils import human_readable_time, timestamp_to_human_readable, ImageVideoTool, check_port, get_unbacked_up_folders, get_total_size, count_unique_keywords
 from memococo.app_map import get_app_names_by_app_codes, get_app_code_by_app_name
+
+# 导入错误处理模块
 from memococo.common.error_handler import initialize_error_handler, with_error_handling, MemoCocoError, DatabaseError, FileError, SystemError
 from memococo.common.error_middleware import setup_error_handling
-import time
+
+# 导入国际化支持模块
+from memococo.i18n import get_translator, set_locale, get_locale, get_available_locales
+from memococo.i18n.flask_i18n import FlaskI18n
 
 # 全局变量
 app = Flask(__name__, static_folder="static", static_url_path="/static")
@@ -28,6 +41,34 @@ initialize_error_handler(logger=main_logger, show_in_console=True, show_in_ui=Tr
 
 # 设置错误处理中间件
 error_middleware = setup_error_handling(app, logger=main_logger)
+
+# 初始化国际化支持
+app.config['I18N_DEFAULT_LOCALE'] = 'zh_CN'
+app.config['I18N_SESSION_KEY'] = 'locale'
+i18n = FlaskI18n(app)
+
+# 创建翻译函数
+def _(key, default=None, **kwargs):
+    translator = get_translator()
+    return translator.translate(key, default, **kwargs)
+
+# 添加语言切换路由
+@app.route('/set_locale/<locale>')
+def set_locale_route(locale):
+    # 验证语言代码
+    if locale in get_available_locales():
+        # 保存到会话
+        session[app.config['I18N_SESSION_KEY']] = locale
+
+        # 如果有重定向URL，则重定向
+        redirect_url = request.args.get('next') or request.referrer or '/'
+        return redirect(redirect_url)
+
+    # 如果语言代码无效，返回400错误
+    return app.response_class(
+        response=render_template('error.html', error='Invalid locale'),
+        status=400,
+    )
 
 # 创建共享变量
 ignored_apps = None
@@ -85,9 +126,11 @@ def timeline():
     #     Thread(target=query_ollama,args=("你好",get_settings()["model"])).start()
     return render_template("index.html",
         timestamps=timestamps,
-        time_nodes = time_nodes,
-        unique_apps = unique_apps,
-        app_name = app_name_cn
+        time_nodes=time_nodes,
+        unique_apps=unique_apps,
+        app_name=_('app_name'),
+        locale=get_locale(),
+        available_locales=get_available_locales()
     )
 
 
@@ -181,7 +224,9 @@ def search():
         keywords=keywords,
         q=q,
         unique_apps=search_apps,
-        app_name=app_name_cn
+        app_name=_('app_name'),
+        locale=get_locale(),
+        available_locales=get_available_locales()
     )
 
 
@@ -217,13 +262,19 @@ def settings():
 
         # 注意：手动清理功能已移除，以确保数据持久保存
         # 浮窗提示，保存成功
-        flash("设置已保存", "success")
+        flash(_('settings_saved'), "success")
         # 等待两秒后，重定向到 /
         time.sleep(2)
         return redirect(url_for("timeline"))
     # 获取当前设置
     current_settings = get_settings()
-    return render_template("settings.html", settings=current_settings)
+    return render_template(
+        "settings.html",
+        settings=current_settings,
+        app_name=_('app_name'),
+        locale=get_locale(),
+        available_locales=get_available_locales()
+    )
 
 
 @app.route("/pictures/<filename>")
@@ -259,7 +310,14 @@ def unbacked_up_folders():
     folder_info = get_unbacked_up_folders()
     total_size = get_total_size()
     # 将未备份的文件夹传递给模板
-    return render_template("unbacked_up_folders.html", folders=folder_info,totalSize=total_size)
+    return render_template(
+        "unbacked_up_folders.html",
+        folders=folder_info,
+        totalSize=total_size,
+        app_name=_('app_name'),
+        locale=get_locale(),
+        available_locales=get_available_locales()
+    )
 
 def compress_folder_thread(folder):
     # 创建 ImageVideoTool 实例

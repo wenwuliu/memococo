@@ -1,0 +1,85 @@
+{
+  "app_name": "MemoCoco",
+  "app_description": "Record your screen activities",
+  
+  "nav_search": "Search",
+  "nav_settings": "Settings",
+  "nav_home": "Home",
+  "nav_folders": "Folders",
+  
+  "search_placeholder": "Search...",
+  "search_no_results": "No matching results found",
+  "search_results": "Search Results",
+  "search_keywords": "Keywords",
+  
+  "settings_title": "Settings",
+  "settings_general": "General Settings",
+  "settings_screenshot": "Screenshot Settings",
+  "settings_ocr": "OCR Settings",
+  "settings_language": "Language Settings",
+  "settings_theme": "Theme Settings",
+  "settings_save": "Save Settings",
+  "settings_reset": "Reset Settings",
+  "settings_saved": "Settings Saved",
+  
+  "theme_light": "Light Mode",
+  "theme_dark": "Dark Mode",
+  "theme_system": "System Default",
+  
+  "language_zh_CN": "Chinese (Simplified)",
+  "language_en_US": "English (US)",
+  
+  "screenshot_interval": "Screenshot Interval (seconds)",
+  "screenshot_primary_only": "Primary Monitor Only",
+  "screenshot_compress": "Compress Screenshots",
+  "screenshot_quality": "Compression Quality",
+  
+  "ocr_engine": "OCR Engine",
+  "ocr_batch_size": "Batch Size",
+  "ocr_min_queue": "Minimum Queue Length",
+  "ocr_max_queue": "Maximum Queue Length",
+  "ocr_cpu_threshold": "CPU Usage Threshold",
+  "ocr_temp_threshold": "CPU Temperature Threshold",
+  
+  "folders_title": "Unbacked Up Folders",
+  "folders_total_size": "Total Folder Size",
+  "folders_compress": "Compress",
+  "folders_compressing": "Compressing...",
+  "folders_compressed": "Compression Complete",
+  "folders_today": "Today's folder, cannot be compressed",
+  "folders_image_count": "Image Count",
+  
+  "time_just_now": "Just now",
+  "time_minutes_ago": "{minutes} minutes ago",
+  "time_hours_ago": "{hours} hours ago",
+  "time_yesterday": "Yesterday",
+  "time_days_ago": "{days} days ago",
+  
+  "modal_close": "Close",
+  "modal_save": "Save",
+  "modal_cancel": "Cancel",
+  "modal_confirm": "Confirm",
+  "modal_delete": "Delete",
+  
+  "error_title": "Error",
+  "error_message": "An error has occurred",
+  "error_details": "Details",
+  "error_retry": "Retry",
+  
+  "empty_state": "No data available",
+  "loading": "Loading...",
+  "expand": "Expand",
+  "collapse": "Collapse",
+  "show_text": "Show Text",
+  "show_image": "Show Image",
+  "copy_text": "Copy Text",
+  "text_copied": "Text Copied",
+  
+  "prev": "Previous",
+  "next": "Next",
+  "first": "First",
+  "last": "Last",
+  "page": "Page {page}",
+  "total_items": "Total Items: {count}",
+  "total_pages": "Total Pages: {count}"
+}

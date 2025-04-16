@@ -1,0 +1,27 @@
+{% macro language_switcher(current_locale, available_locales) %}
+<div class="language-switcher dropdown">
+  <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" id="languageSwitcherDropdown" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+    <i class="bi bi-globe"></i>
+    {% if current_locale == 'zh_CN' %}
+      中文
+    {% elif current_locale == 'en_US' %}
+      English
+    {% else %}
+      {{ current_locale }}
+    {% endif %}
+  </button>
+  <div class="dropdown-menu dropdown-menu-right" aria-labelledby="languageSwitcherDropdown">
+    {% for locale in available_locales %}
+      <a class="dropdown-item {% if locale == current_locale %}active{% endif %}" href="{{ url_for('set_locale_route', locale=locale, next=request.path) }}">
+        {% if locale == 'zh_CN' %}
+          <span class="flag-icon">🇨🇳</span> 中文
+        {% elif locale == 'en_US' %}
+          <span class="flag-icon">🇺🇸</span> English
+        {% else %}
+          {{ locale }}
+        {% endif %}
+      </a>
+    {% endfor %}
+  </div>
+</div>
+{% endmacro %}

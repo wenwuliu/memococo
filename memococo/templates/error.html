@@ -1,10 +1,5 @@
-<!DOCTYPE html>
-<html lang="zh-CN">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>错误 - {{ app_name }}</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/bootstrap.min.css') }}">
+{% extends "template.html" %}
+{% block content %}
     <style>
         body {
             padding-top: 40px;
@@ -45,18 +40,18 @@
 <body>
     <div class="container error-container">
         <div class="error-heading text-center">
-            <h1>出错了</h1>
-            <p class="lead">抱歉，程序遇到了一个问题</p>
+            <h1>{{ _('error_title') }}</h1>
+            <p class="lead">{{ _('error_message') }}</p>
         </div>
-        
+
         <div class="alert alert-danger">
             <h4>{{ error.type }}</h4>
             <p>{{ error.message }}</p>
         </div>
-        
+
         {% if error.details %}
         <div class="error-details">
-            <h4>详细信息</h4>
+            <h4>{{ _('error_details') }}</h4>
             <ul>
                 {% for key, value in error.details.items() %}
                 <li><strong>{{ key }}:</strong> {{ value }}</li>
@@ -64,21 +59,18 @@
             </ul>
         </div>
         {% endif %}
-        
+
         {% if error.traceback %}
         <div class="error-traceback">
-            <h4>错误堆栈</h4>
+            <h4>{{ _('error_details') }}</h4>
             <pre>{{ error.traceback }}</pre>
         </div>
         {% endif %}
-        
+
         <div class="error-actions text-center">
-            <a href="/" class="btn btn-primary">返回首页</a>
-            <button onclick="window.history.back()" class="btn btn-secondary">返回上一页</button>
-            <button onclick="location.reload()" class="btn btn-info">刷新页面</button>
+            <a href="/" class="btn btn-primary">{{ _('nav_home') }}</a>
+            <button onclick="window.history.back()" class="btn btn-secondary">{{ _('modal_cancel') }}</button>
+            <button onclick="location.reload()" class="btn btn-info">{{ _('error_retry') }}</button>
         </div>
     </div>
-    
-    <script src="{{ url_for('static', filename='js/bootstrap.bundle.min.js') }}"></script>
-</body>
-</html>
+{% endblock %}
