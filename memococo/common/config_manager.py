@@ -35,6 +35,12 @@ class ConfigValidator:
         Raises:
             ConfigValidationError: 当验证失败时抛出
         """
+        # 特殊处理布尔类型
+        if expected_type == bool or (isinstance(expected_type, list) and bool in expected_type):
+            # 如果值是字符串形式的布尔值，转换为布尔值
+            if isinstance(value, str) and value.lower() in ['true', 'false']:
+                return True  # 允许字符串形式的布尔值通过验证
+
         if isinstance(expected_type, list):
             if not any(isinstance(value, t) for t in expected_type):
                 type_names = [t.__name__ for t in expected_type]
@@ -199,6 +205,15 @@ class ConfigManager:
                     if self.logger:
                         self.logger.error(error_msg)
                     raise ConfigParseError(error_msg, {"file": self.config_file})
+
+                # 处理字符串形式的布尔值
+                if self.schema:
+                    for key, value in config.items():
+                        if key in self.schema and self.schema[key].get("type") == "boolean" and isinstance(value, str):
+                            if value.lower() == "true":
+                                config[key] = True
+                            elif value.lower() == "false":
+                                config[key] = False
 
                 # 验证配置
                 self._validate_config(config)
@@ -389,6 +404,13 @@ class ConfigManager:
         if key in self.schema:
             schema_item = self.schema[key]
 
+            # 处理字符串形式的布尔值
+            if schema_item.get("type") == "boolean" and isinstance(value, str):
+                if value.lower() == "true":
+                    value = True
+                elif value.lower() == "false":
+                    value = False
+
             # 验证类型
             if "type" in schema_item:
                 expected_type = schema_item["type"]
@@ -451,6 +473,14 @@ class ConfigManager:
         for key, value in config.items():
             if key in self.schema:
                 schema_item = self.schema[key]
+
+                # 处理字符串形式的布尔值
+                if schema_item.get("type") == "boolean" and isinstance(value, str):
+                    if value.lower() == "true":
+                        config[key] = True
+                    elif value.lower() == "false":
+                        config[key] = False
+                    value = config[key]  # 更新value变量
 
                 # 验证类型
                 if "type" in schema_item:
