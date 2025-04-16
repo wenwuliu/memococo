@@ -52,23 +52,7 @@ def _(key, default=None, **kwargs):
     translator = get_translator()
     return translator.translate(key, default, **kwargs)
 
-# 添加语言切换路由
-@app.route('/set_locale/<locale>')
-def set_locale_route(locale):
-    # 验证语言代码
-    if locale in get_available_locales():
-        # 保存到会话
-        session[app.config['I18N_SESSION_KEY']] = locale
-
-        # 如果有重定向URL，则重定向
-        redirect_url = request.args.get('next') or request.referrer or '/'
-        return redirect(redirect_url)
-
-    # 如果语言代码无效，返回400错误
-    return app.response_class(
-        response=render_template('error.html', error='Invalid locale'),
-        status=400,
-    )
+# 注意：语言切换路由已由 FlaskI18n 扩展提供，不需要在这里重复定义
 
 # 创建共享变量
 ignored_apps = None
