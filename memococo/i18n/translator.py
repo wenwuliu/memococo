@@ -145,17 +145,24 @@ def get_locale() -> str:
     Returns:
         str: 当前语言代码
     """
-    # 优先使用会话中的语言设置
-    if hasattr(session, 'locale'):
-        return session.locale
+    try:
+        # 优先使用会话中的语言设置
+        from flask import session, request, current_app
 
-    # 其次使用请求中的语言设置
-    if hasattr(request, 'accept_languages'):
-        # 获取浏览器支持的语言列表
-        locales = get_available_locales()
-        for locale in request.accept_languages.values():
-            if locale[:2] in [l[:2] for l in locales]:
-                return locale
+        # 从会话中获取语言设置
+        if 'I18N_SESSION_KEY' in current_app.config and current_app.config['I18N_SESSION_KEY'] in session:
+            return session[current_app.config['I18N_SESSION_KEY']]
+
+        # 其次使用请求中的语言设置
+        if hasattr(request, 'accept_languages'):
+            # 获取浏览器支持的语言列表
+            locales = get_available_locales()
+            for locale in request.accept_languages.values():
+                if locale[:2] in [l[:2] for l in locales]:
+                    return locale
+    except Exception:
+        # 如果出错，使用默认语言
+        pass
 
     # 最后使用默认语言
     return _current_locale

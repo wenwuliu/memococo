@@ -6,7 +6,7 @@ Flask国际化扩展
 
 import os
 from typing import Optional, Dict, Any, List
-from flask import Flask, request, session, g, render_template
+from flask import Flask, request, session, g, render_template, redirect
 from markupsafe import Markup
 
 from memococo.i18n.translator import Translator, get_translator, set_locale, get_locale, get_available_locales
@@ -74,7 +74,7 @@ class FlaskI18n:
 
                 # 如果有重定向URL，则重定向
                 redirect_url = request.args.get('next') or request.referrer or '/'
-                return app.redirect(redirect_url)
+                return redirect(redirect_url)
 
             # 如果语言代码无效，返回400错误
             return app.response_class(

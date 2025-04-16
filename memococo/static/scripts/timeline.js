@@ -87,6 +87,31 @@ const TimelineController = {
         if (this.elements.toggleAppsButton) {
             this.elements.toggleAppsButton.addEventListener('click', this.toggleApps.bind(this));
         }
+
+        // 添加鼠标滚轮事件
+        this.elements.slider.addEventListener('wheel', this.handleMouseWheel.bind(this));
+    },
+
+    /**
+     * 处理鼠标滚轮事件
+     * @param {WheelEvent} event 滚轮事件
+     */
+    handleMouseWheel: function(event) {
+        // 防止页面滚动
+        event.preventDefault();
+
+        // 计算滚动方向
+        const delta = -Math.sign(event.deltaY);
+
+        // 计算新的滑块值
+        const newValue = Math.max(0, Math.min(parseInt(this.elements.slider.value) + delta, parseInt(this.elements.slider.max)));
+
+        // 设置新的滑块值
+        this.elements.slider.value = newValue;
+
+        // 触发input事件，使其他逻辑正常执行
+        const inputEvent = new Event('input');
+        this.elements.slider.dispatchEvent(inputEvent);
     },
 
     /**

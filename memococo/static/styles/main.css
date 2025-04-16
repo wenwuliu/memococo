@@ -294,6 +294,40 @@ body.dark-mode .text-label {
     border-color: #444;
 }
 
+/* 暗黑模式下的列表组样式 */
+body.dark-mode .list-group-item {
+    background-color: #343a40;
+    color: #f8f9fa;
+    border-color: #495057;
+}
+
+body.dark-mode .badge-secondary {
+    background-color: #6c757d;
+}
+
+body.dark-mode .badge-info {
+    background-color: #17a2b8;
+}
+
+body.dark-mode .text-muted {
+    color: #adb5bd !important;
+}
+
+/* 暗黑模式下的卡片样式 */
+body.dark-mode .card {
+    background-color: #343a40;
+    border-color: #495057;
+}
+
+body.dark-mode .card-body {
+    background-color: #343a40;
+}
+
+body.dark-mode .card-footer {
+    background-color: #2c3136;
+    border-top-color: #495057;
+}
+
 /* 辅助类 */
 .mb-20 {
     margin-bottom: 20px;
