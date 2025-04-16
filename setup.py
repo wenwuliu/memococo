@@ -39,7 +39,7 @@ if current_os in OS_DEPENDENCIES:
 
 setup(
     name="MemoCoco",
-    version="2.2.3",  # 更新版本号，添加了UmiOCR支持
+    version="2.2.10",  # 更新版本号，增强了OCR处理和界面体验
     description="MemoCoco - 时间胶囊",
     long_description=long_description,
     long_description_content_type="text/markdown",
