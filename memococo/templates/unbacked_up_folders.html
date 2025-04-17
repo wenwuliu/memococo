@@ -11,7 +11,7 @@
         <span class="badge badge-secondary badge-pill">
           <i class="bi bi-image"></i> {{ folder_info.image_count }} {{ _('folders_image_count') }}
         </span>
-        <span class="badge badge-secondary badge-pill">{{ folder_info.folder_size }} ➡ {{ '%.2f' % (folder_info.image_count * 0.028) }}M </span>
+        <span class="badge badge-secondary badge-pill">{{ folder_info.folder_size }} ➡ {{ '%.2f' % (folder_info.image_count * 0.028) }}MB </span>
         {% if not folder_info.is_today %}
         <form action="{{ url_for('compress_folder') }}" method="post" id="compress-form-{{ loop.index }}">
           <input type="hidden" name="folder" value="{{ folder_info.folder }}">
