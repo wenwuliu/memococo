@@ -21,7 +21,7 @@ from memococo.config_schema import CONFIG_SCHEMA, DEFAULT_CONFIG
 app_name_cn = "时光胶囊"
 app_name_en = "MemoCoco"
 main_app_name = app_name_en
-app_version = "2.2.10"
+app_version = "2.2.11"
 
 # 命令行参数解析
 parser = argparse.ArgumentParser(description=main_app_name)

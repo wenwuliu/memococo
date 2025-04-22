@@ -40,7 +40,7 @@ MemoCoco 是一个全开源、注重隐私的数字记忆工具，是 Microsoft 
 1. 下载最新的 .deb 包
 2. 使用以下命令安装：
    ```bash
-   sudo dpkg -i memococo_2.2.10_amd64.deb
+   sudo dpkg -i memococo_2.2.11_amd64.deb
    ```
    安装脚本会自动安装所有必要的依赖
 
@@ -167,7 +167,7 @@ sudo gem install fpm
 ./build_deb.sh
 ```
 
-打包完成后，会在当前目录生成 `memococo_2.2.10_amd64.deb` 文件。
+打包完成后，会在当前目录生成 `memococo_2.2.11_amd64.deb` 文件。
 
 ## 贡献
 

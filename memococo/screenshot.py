@@ -514,6 +514,7 @@ def record_screenshots_thread(ignored_apps, ignored_apps_updated, save_power=Tru
             # 检查CPU使用率和温度
             cpu_usage = psutil.cpu_percent(interval=1)
             cpu_temperature = get_cpu_temperature()
+            
             if power_saving_mode(save_power) or cpu_usage > 70 or (cpu_temperature is not None and cpu_temperature > 70):
                 ocr_text = ''
             else:
@@ -525,17 +526,16 @@ def record_screenshots_thread(ignored_apps, ignored_apps_updated, save_power=Tru
                 except Exception as e:
                     screenshot_logger.error(f"Failed to ocr: {e}")
                     ocr_text = ''
-
-
-            # 如果启用压缩，先同步压缩图像，再保存到数据库
-            if enable_compress and not power_saving_mode(save_power) and cpu_usage < 70 and (cpu_temperature is None or cpu_temperature < 70):
+                    
+            #如果ocr_text不为空，则压缩图像
+            if enable_compress and ocr_text:
                 screenshot_logger.debug(f"开始压缩图像: {image_path}")
                 compress_start_time = time.time()
                 compress_img_PIL(image_path, target_size_kb=200)
                 compress_end_time = time.time()
                 screenshot_logger.debug(f"图像压缩完成: {image_path}, 耗时: {compress_end_time - compress_start_time:.2f}秒")
 
-            # 压缩完成后，将数据插入数据库，使用空文本（OCR将由独立线程处理）
+            # 压缩完成后，将数据插入数据库
             insert_entry("", timestamp, ocr_text, active_app_name, active_window_title)
 
             # 如果当前的年月日和dirDate不同，则创建新的目录

@@ -39,7 +39,7 @@ if current_os in OS_DEPENDENCIES:
 
 setup(
     name="MemoCoco",
-    version="2.2.10",  # 更新版本号，增强了OCR处理和界面体验
+    version="2.2.11",  # 更新版本号，调整OCR后图片压缩逻辑，优化鼠标滚轮滑动
     description="MemoCoco - 时间胶囊",
     long_description=long_description,
     long_description_content_type="text/markdown",

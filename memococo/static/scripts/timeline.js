@@ -101,7 +101,7 @@ const TimelineController = {
         event.preventDefault();
 
         // 计算滚动方向
-        const delta = -Math.sign(event.deltaY);
+        const delta = Math.sign(event.deltaY);
 
         // 计算新的滑块值
         const newValue = Math.max(0, Math.min(parseInt(this.elements.slider.value) + delta, parseInt(this.elements.slider.max)));
