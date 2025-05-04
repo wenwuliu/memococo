@@ -336,7 +336,7 @@ def compress_img_PIL(img_path, target_size_kb=200, show=False):
 def power_saving_mode(save_power):
     if save_power:
         battery = psutil.sensors_battery()
-        if  battery is not None and battery.percent < 75 and battery.power_plugged == False:
+        if  battery is not None and battery.percent < 90 and battery.power_plugged == False:
             return True
     return False
 
