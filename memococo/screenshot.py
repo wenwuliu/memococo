@@ -351,9 +351,6 @@ _cpu_count = multiprocessing.cpu_count()
 def record_screenshots_thread(ignored_apps, ignored_apps_updated, save_power=True, idle_time=5, enable_compress=True):
     """截图主线程，负责截图、压缩图片和保存数据到数据库
 
-    完全分离了OCR处理，只负责截图和保存基本数据到数据库
-    OCR处理由独立的OCR线程负责
-
 
     Args:
         ignored_apps: 要忽略的应用程序列表
@@ -403,7 +400,7 @@ def record_screenshots_thread(ignored_apps, ignored_apps_updated, save_power=Tru
                 user_inactive_logged = True
             # 查询待处理OCR数量
             idle_data = get_newest_empty_text()
-            if idle_data:
+            if idle_data and not power_saving_mode(save_power):
                 screenshot_logger.debug(f"Idle data: {idle_data}")
                 try:
                     timestamp_dt = datetime.datetime.fromtimestamp(idle_data.timestamp)
