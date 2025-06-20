@@ -167,27 +167,6 @@ const TimelineController = {
         // 显示预览
         this.elements.sliderPreview.style.display = 'block';
 
-        // 设置预览框样式
-        this.elements.sliderPreview.style.position = 'fixed';
-        this.elements.sliderPreview.style.backgroundColor = 'rgba(0, 0, 0, 0.8)';
-        this.elements.sliderPreview.style.padding = '10px';
-        this.elements.sliderPreview.style.borderRadius = '5px';
-        this.elements.sliderPreview.style.zIndex = '1000';
-        this.elements.sliderPreview.style.transform = 'translateX(-50%)';
-
-        // 设置预览图片样式
-        if (this.elements.previewImage) {
-            this.elements.previewImage.style.width = '300px';  // 设置预览图片宽度
-            this.elements.previewImage.style.height = 'auto';  // 高度自动调整保持比例
-            this.elements.previewImage.style.display = 'block';
-        }
-
-        // 设置预览时间文本样式
-        if (this.elements.previewTime) {
-            this.elements.previewTime.style.color = 'white';
-            this.elements.previewTime.style.textAlign = 'center';
-            this.elements.previewTime.style.marginTop = '5px';
-        }
 
         // 使用setTimeout确保display属性已经应用
         setTimeout(() => {
