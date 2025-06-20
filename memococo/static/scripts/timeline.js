@@ -14,15 +14,20 @@ const TimelineController = {
         timestampImage: null,
         timeNodes: null,
         appList: null,
-        toggleAppsButton: null
+        toggleAppsButton: null,
+        sliderPreview: null,
+        previewImage: null,
+        previewTime: null
     },
 
     // 数据
     data: {
         timestamps: [],
         timeoutId: null,
+        previewTimeoutId: null,
         imgWidth: 0,
-        imgHeight: 0
+        imgHeight: 0,
+        lastPreviewTimestamp: null
     },
 
     /**
@@ -41,6 +46,9 @@ const TimelineController = {
         this.elements.timeNodes = document.querySelectorAll('.time-node');
         this.elements.appList = document.getElementById('app-list');
         this.elements.toggleAppsButton = document.getElementById('toggle-apps');
+        this.elements.sliderPreview = document.getElementById('sliderPreview');
+        this.elements.previewImage = document.getElementById('previewImage');
+        this.elements.previewTime = document.getElementById('previewTime');
 
         // 设置初始值
         this.setInitialValues();
@@ -71,6 +79,11 @@ const TimelineController = {
 
         // 加载初始图片
         this.elements.timestampImage.src = `/pictures/${initialTimestamp}.webp`;
+
+        // 设置预览图片的初始src
+        if (this.elements.previewImage) {
+            this.elements.previewImage.src = `/pictures/${initialTimestamp}.webp`;
+        }
     },
 
     /**
@@ -90,6 +103,108 @@ const TimelineController = {
 
         // 添加鼠标滚轮事件
         this.elements.slider.addEventListener('wheel', this.handleMouseWheel.bind(this));
+
+        // 添加滑块预览事件
+        this.elements.slider.addEventListener('mousemove', this.handleSliderMouseMove.bind(this));
+        this.elements.slider.addEventListener('mouseenter', this.handleSliderMouseEnter.bind(this));
+        this.elements.slider.addEventListener('mouseleave', this.handleSliderMouseLeave.bind(this));
+    },
+
+    /**
+     * 处理滑块鼠标移动事件
+     * @param {MouseEvent} event 鼠标事件对象
+     */
+    handleSliderMouseMove: function(event) {
+        // 计算鼠标在滑块上的相对位置（0-1之间）
+        const sliderRect = this.elements.slider.getBoundingClientRect();
+        const relativePosition = (event.clientX - sliderRect.left) / sliderRect.width;
+
+        // 计算对应的时间戳索引
+        const maxIndex = this.data.timestamps.length - 1;
+        const index = Math.round(relativePosition * maxIndex);
+        const reversedIndex = maxIndex - index;
+
+        // 获取对应的时间戳并确保它是一个数字
+        const timestamp = parseInt(this.data.timestamps[reversedIndex], 10);
+
+        // 如果时间戳无效或与上次预览的相同，则不重新加载
+        if (isNaN(timestamp) || timestamp === this.data.lastPreviewTimestamp) {
+            // 只更新位置
+            this.elements.sliderPreview.style.left = `${event.clientX}px`;
+            return;
+        }
+
+        // 保存当前时间戳
+        this.data.lastPreviewTimestamp = timestamp;
+
+        // 更新预览时间文本
+        this.elements.previewTime.textContent = this.formatTimestamp(timestamp);
+
+        // 清除之前的定时器
+        if (this.data.previewTimeoutId) {
+            clearTimeout(this.data.previewTimeoutId);
+        }
+
+        // 设置新的定时器，延迟加载预览图片（防止频繁加载）
+        this.data.previewTimeoutId = setTimeout(() => {
+            // 确保timestamp是有效的数字
+            if (!isNaN(timestamp)) {
+                console.log('Loading preview for timestamp:', timestamp);
+                this.elements.previewImage.src = `/pictures/${timestamp}.webp`;
+            } else {
+                console.error('Invalid timestamp for preview:', timestamp);
+            }
+        }, 50);
+
+        // 更新预览位置
+        this.elements.sliderPreview.style.left = `${event.clientX}px`;
+    },
+
+    /**
+     * 处理滑块鼠标进入事件
+     */
+    handleSliderMouseEnter: function() {
+        // 显示预览
+        this.elements.sliderPreview.style.display = 'block';
+
+        // 设置预览框样式
+        this.elements.sliderPreview.style.position = 'fixed';
+        this.elements.sliderPreview.style.backgroundColor = 'rgba(0, 0, 0, 0.8)';
+        this.elements.sliderPreview.style.padding = '10px';
+        this.elements.sliderPreview.style.borderRadius = '5px';
+        this.elements.sliderPreview.style.zIndex = '1000';
+        this.elements.sliderPreview.style.transform = 'translateX(-50%)';
+
+        // 设置预览图片样式
+        if (this.elements.previewImage) {
+            this.elements.previewImage.style.width = '300px';  // 设置预览图片宽度
+            this.elements.previewImage.style.height = 'auto';  // 高度自动调整保持比例
+            this.elements.previewImage.style.display = 'block';
+        }
+
+        // 设置预览时间文本样式
+        if (this.elements.previewTime) {
+            this.elements.previewTime.style.color = 'white';
+            this.elements.previewTime.style.textAlign = 'center';
+            this.elements.previewTime.style.marginTop = '5px';
+        }
+
+        // 使用setTimeout确保display属性已经应用
+        setTimeout(() => {
+            this.elements.sliderPreview.style.opacity = '1';
+        }, 10);
+    },
+
+    /**
+     * 处理滑块鼠标离开事件
+     */
+    handleSliderMouseLeave: function() {
+        // 先设置透明度为0（触发过渡效果）
+        this.elements.sliderPreview.style.opacity = '0';
+        // 等待过渡效果完成后隐藏元素
+        setTimeout(() => {
+            this.elements.sliderPreview.style.display = 'none';
+        }, 200);
     },
 
     /**

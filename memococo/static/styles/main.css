@@ -127,6 +127,46 @@
     font-size: 1.2em;
 }
 
+/* 滑块预览样式 */
+.slider-preview {
+    position: absolute;
+    display: none;
+    background-color: #fff;
+    border: 2px solid #4CAF50;
+    border-radius: 5px;
+    padding: 5px;
+    z-index: 100;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    transform: translate(-50%, -100%);
+    margin-top: -10px;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.2s ease-in-out;
+}
+
+.preview-img {
+    max-width: 200px;
+    max-height: 150px;
+    display: block;
+}
+
+.preview-time {
+    text-align: center;
+    font-size: 12px;
+    margin-top: 5px;
+    color: #333;
+}
+
+/* 暗黑模式下的预览样式 */
+.dark-mode .slider-preview {
+    background-color: #333;
+    border-color: #4CAF50;
+}
+
+.dark-mode .preview-time {
+    color: #eee;
+}
+
 /* 时间节点样式 */
 #timeNodes {
     position: absolute;

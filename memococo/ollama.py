@@ -2,6 +2,7 @@ import requests
 from memococo.config import logger
 import json
 import time
+import re
 from typing import List, Optional
 import concurrent.futures
 
@@ -38,6 +39,9 @@ def extract_keywords_to_json(keywords: str, model: str = "qwen2.5:3b", base_url:
                 logger.warning("Failed to extract keywords: No response from Ollama")
                 return []
 
+            #移除可能的<think></think>标签与里面的内容
+            answer = re.sub(r'<think>.*?</think>', '', answer)
+
             # 尝试直接解析JSON
             try:
                 # 先尝试直接解析整个响应
@@ -59,7 +63,6 @@ def extract_keywords_to_json(keywords: str, model: str = "qwen2.5:3b", base_url:
             # 如果上述方法都失败，尝试更宽松的提取
             try:
                 # 尝试提取所有可能的JSON数组
-                import re
                 json_arrays = re.findall(r'\[.*?\]', answer)
                 for json_array in json_arrays:
                     try:
