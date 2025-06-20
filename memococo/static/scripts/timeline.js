@@ -119,10 +119,9 @@ const TimelineController = {
         const sliderRect = this.elements.slider.getBoundingClientRect();
         const relativePosition = (event.clientX - sliderRect.left) / sliderRect.width;
 
-        // 计算对应的时间戳索引
-        const maxIndex = this.data.timestamps.length - 1;
-        const index = Math.round(relativePosition * maxIndex);
-        const reversedIndex = maxIndex - index;
+        // 使用与handleSliderInput完全相同的计算方式
+        const sliderValue = Math.round(relativePosition * (this.data.timestamps.length - 1));
+        const reversedIndex = this.data.timestamps.length - 1 - sliderValue;
 
         // 获取对应的时间戳并确保它是一个数字
         const timestamp = parseInt(this.data.timestamps[reversedIndex], 10);
