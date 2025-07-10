@@ -35,7 +35,7 @@ MemoCoco的配置文件位于应用数据目录下的`config.toml`文件中：
 
 | 配置项 | 类型 | 默认值 | 说明 |
 |-------|------|-------|------|
-| `ocr_engine` | 字符串 | `"umiocr"` | 使用的OCR引擎，可选值：`"umiocr"`, `"rapidocr"`, `"easyocr"` |
+| `ocr_engine` | 字符串 | `"umiocr"` | 使用的OCR引擎，可选值：`"umiocr"`, `"rapidocr"` |
 | `ocr_batch_size` | 整数 | `5` | 每批处理的OCR任务数量 |
 | `ocr_min_queue` | 整数 | `5` | OCR处理队列最小长度，低于此值时停止OCR处理 |
 | `ocr_max_queue` | 整数 | `50` | OCR处理队列最大长度，超过此值时开始OCR处理 |

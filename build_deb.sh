@@ -4,7 +4,7 @@
 # 日期: 2024-04-08
 
 # 设置版本号
-VERSION="2.2.11"
+VERSION="2.2.12"
 PACKAGE_NAME="memococo"
 
 # 显示欢迎信息
@@ -119,7 +119,7 @@ apt-get install -y python3-flask python3-mss python3-toml python3-opencv xprop f
 
 # 安装 Python 依赖
 echo "正在安装 Python 依赖..."
-pip3 install Flask>=3.0.3 numpy>=1.26.4 mss>=9.0.1 toml>=0.10.2 pyautogui>=0.9.54 ffmpeg-python>=0.2.0 requests>=2.32.3 jsonify>=0.5 opencv-python>=4.5.1 pillow>=8.2.0 psutil>=5.8.0
+pip3 install Flask>=3.0.3 numpy>=1.26.4 mss>=9.0.1 toml>=0.10.2 pyautogui>=0.9.54 ffmpeg-python>=0.2.0 requests>=2.32.3 jsonify>=0.5 opencv-python>=4.5.1 pillow>=8.2.0 psutil>=5.8.0 babel>=2.14.0 markupsafe>=2.1.5
 
 # 尝试安装 rapidocr-onnxruntime（必需）
 echo "正在安装 OCR 引擎..."

@@ -18,7 +18,7 @@ MemoCoco 是一个全开源、注重隐私的数字记忆工具，是 Microsoft 
 
 ### 增强功能
 
-- **智能 OCR 引擎**：支持多种 OCR 引擎，优先使用 UmiOCR API（速度最快），如果不可用则根据硬件环境自动选择 EasyOCR（GPU模式，识别文本量最多）或 RapidOCR（CPU模式，准确率高）
+- **智能 OCR 引擎**：支持多种 OCR 引擎，优先使用 UmiOCR API（速度最快），如果不可用则使用 RapidOCR（CPU模式，轻量级且准确率高）
 - **本地搜索引擎**：高效的本地搜索功能，支持全文本搜索和关键词匹配
 - **存储路径优化**：使用文件夹切片模式优化图像存储路径
 - **异步图片压缩**：高效的后台图片压缩功能，在不影响截图速度的同时减小存储空间占用
@@ -90,7 +90,7 @@ python3 -m memococo.app
      1. 系统偏好设置 > 用户与群组 > 登录项目
      2. 点击“+”按钮，选择UmiOCR应用
 
-安装并配置好UmiOCR后，MemoCoco将自动检测并使用UmiOCR进行OCR识别。根据测试结果，UmiOCR的识别速度比RapidOCR快约2.7倍，比EasyOCR快约4.5倍，同时识别的文本量与EasyOCR相当。这将显著提高您的使用体验。
+安装并配置好UmiOCR后，MemoCoco将自动检测并使用UmiOCR进行OCR识别。根据测试结果，UmiOCR的识别速度比RapidOCR快约2.7倍，同时提供了优秀的识别准确率。这将显著提高您的使用体验。
 
 ### 启动应用
 
@@ -156,7 +156,9 @@ http://127.0.0.1:8842
 
 ## 打包说明
 
-本项目提供了一个打包脚本，可以将应用打包为 .deb 包：
+本项目提供了多种打包方式：
+
+### .deb 包打包
 
 ```bash
 # 安装打包依赖
@@ -167,7 +169,34 @@ sudo gem install fpm
 ./build_deb.sh
 ```
 
-打包完成后，会在当前目录生成 `memococo_2.2.11_amd64.deb` 文件。
+打包完成后，会在当前目录生成 `memococo_2.2.12_amd64.deb` 文件。
+
+### AppImage 打包 (推荐)
+
+AppImage是一种便携的Linux应用程序格式，无需安装即可在任何Linux发行版上运行：
+
+```bash
+# 首先设置 AppImageTool (仅需运行一次)
+./setup_appimagetool.sh
+
+# 然后选择打包方案:
+# 简化方案 (推荐，快速构建)
+./build_appimage_simple.sh
+
+# PyInstaller简化方案 (更好的性能)
+./build_appimage_pyinstaller_simple.sh
+
+# 完整嵌入方案 (最大兼容性)
+./build_appimage.sh
+```
+
+**AppImage优势：**
+- 一次构建，到处运行
+- 无需root权限安装
+- 自包含所有依赖
+- 便携性强，可放在U盘中
+
+详细的AppImage打包说明请参考：[docs/appimage_packaging.md](docs/appimage_packaging.md)
 
 ## 贡献
 

@@ -46,3 +46,6 @@ venv/
 ENV/
 env.bak/
 venv.bak/
+
+AppDir/*
+MemoCoco-2.2.11-x86_64.AppImage

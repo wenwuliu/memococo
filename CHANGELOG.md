@@ -1,5 +1,40 @@
 # MemoCoco 更新日志
 
+## 2.2.12 (2025-01-07)
+
+### 🎯 重大优化
+- **移除EasyOCR引擎**: 大幅减少AppImage打包体积（减少约1GB）
+- **简化OCR系统**: 保留UmiOCR API和RapidOCR两个核心引擎
+- **优化依赖管理**: 移除PyTorch、CUDA等重型依赖
+
+### 🔧 技术改进
+- 移除GPU检测功能（通过UmiOCR仍可获得GPU加速）
+- 简化OCR引擎选择逻辑
+- 更新所有打包脚本以支持本地appimagetool
+- 优化AppImage打包流程
+
+### 📦 打包优化
+- 新增`setup_appimagetool.sh`脚本自动设置打包工具
+- 支持使用本地`~/appImages/appimagetool-x86_64.AppImage`
+- 避免网络下载依赖，提高构建效率
+- 新增`build_appimage_pyinstaller_simple.sh`简化版PyInstaller打包
+
+### 📚 文档更新
+- 新增`docs/ocr_optimization.md`详细说明OCR系统优化
+- 更新`docs/appimage_packaging.md`包含最新打包指南
+- 更新README.md移除EasyOCR相关描述
+
+### ⚠️ 破坏性变更
+- 移除EasyOCR引擎支持
+- 移除GPU自动检测功能
+- 建议用户安装UmiOCR获得最佳性能
+
+### 🚀 性能提升
+- AppImage体积减少约50-70%
+- 启动速度提升
+- 内存占用降低
+- 依赖安装更快
+
 ## 2.2.11 (2025-04-16)
 
 ### 改进

@@ -45,7 +45,7 @@ def extract_text_from_images_batch(images: List[np.ndarray]) -> List[str]:
 def rapid_ocr(image: np.ndarray) -> List:
     """使用OCR引擎进行图像文本提取
 
-    注意：此函数保留为兼容原有代码，实际使用的引擎可能是RapidOCR或EasyOCR
+    注意：此函数保留为兼容原有代码，实际使用的引擎可能是UmiOCR或RapidOCR
 
     Args:
         image: 要处理的图像（NumPy数组）
@@ -74,7 +74,7 @@ def rapid_ocr(image: np.ndarray) -> List:
 def rapid_ocr_batch(images: List[np.ndarray]) -> List[List]:
     """批量使用OCR引擎进行图像文本提取
 
-    注意：此函数保留为兼容原有代码，实际使用的引擎可能是RapidOCR或EasyOCR
+    注意：此函数保留为兼容原有代码，实际使用的引擎可能是UmiOCR或RapidOCR
 
     Args:
         images: 图像列表

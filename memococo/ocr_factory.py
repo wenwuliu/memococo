@@ -2,8 +2,8 @@
 OCR引擎工厂模块
 
 根据硬件环境自动选择最合适的OCR引擎：
-- 如果有GPU，使用EasyOCR (GPU模式)
-- 如果只有CPU，使用RapidOCR (CPU模式)
+- 优先使用UmiOCR API（速度最快，准确率高）
+- 如果UmiOCR不可用，使用RapidOCR（CPU模式，轻量级）
 """
 
 from memococo.config import logger
@@ -15,7 +15,6 @@ import gc
 
 # OCR引擎类型
 OCR_ENGINE_RAPIDOCR = "rapidocr"  # RapidOCR引擎
-OCR_ENGINE_EASYOCR = "easyocr"    # EasyOCR引擎
 OCR_ENGINE_UMIOCR = "umiocr"      # UmiOCR API引擎
 
 # 导入UmiOCR客户端
@@ -28,7 +27,6 @@ except ImportError:
 # 全局OCR引擎，避免重复创建
 _ocr_engine = None
 _ocr_engine_type = None
-_gpu_available = False
 _umiocr_client = None
 _umiocr_available = None  # None表示未检查，True/False表示检查结果
 
@@ -66,27 +64,7 @@ def check_umiocr_availability() -> bool:
         _umiocr_available = False
         return False
 
-def check_gpu_availability() -> bool:
-    """检查GPU是否可用
 
-    Returns:
-        bool: GPU是否可用
-    """
-    try:
-        import torch
-        if torch.cuda.is_available():
-            gpu_name = torch.cuda.get_device_name(0)
-            logger.info(f"检测到GPU: {gpu_name}")
-            return True
-        else:
-            logger.info("未检测到GPU，将使用CPU模式")
-            return False
-    except ImportError:
-        logger.info("未安装PyTorch，无法检测GPU，将使用CPU模式")
-        return False
-    except Exception as e:
-        logger.error(f"检测GPU时出错: {e}")
-        return False
 
 def preprocess_image_for_ocr(image: np.ndarray) -> Optional[np.ndarray]:
     """预处理图像用于OCR识别
@@ -115,22 +93,20 @@ def get_ocr_engine(force_type: Optional[str] = None) -> Tuple[Any, str]:
     选择OCR引擎的优先级：
     1. 如果强制指定了引擎类型，使用指定的引擎
     2. 如果UmiOCR可用，使用UmiOCR API，因为它速度最快
-    3. 如果有GPU，使用EasyOCR (GPU模式)，因为它识别的文本量更多
-    4. 如果只有CPU，使用RapidOCR (CPU模式)，因为它在CPU模式下速度更快且准确率更高
+    3. 使用RapidOCR (CPU模式)，轻量级且准确率高
 
     Args:
-        force_type: 强制使用指定类型的引擎，可选值: "rapidocr", "easyocr", "umiocr"
+        force_type: 强制使用指定类型的引擎，可选值: "rapidocr", "umiocr"
 
     Returns:
         Tuple[Any, str]: (OCR引擎实例, 引擎类型)
     """
-    global _ocr_engine, _ocr_engine_type, _gpu_available, _umiocr_client, _umiocr_available
+    global _ocr_engine, _ocr_engine_type, _umiocr_client, _umiocr_available
 
     # 如果引擎已初始化且类型匹配，直接返回
     if _ocr_engine is not None and (force_type is None or force_type == _ocr_engine_type):
         engine_name = {
             OCR_ENGINE_RAPIDOCR: "RapidOCR (CPU)",
-            OCR_ENGINE_EASYOCR: "EasyOCR (GPU)" if _gpu_available else "EasyOCR (CPU)",
             OCR_ENGINE_UMIOCR: "UmiOCR API"
         }.get(_ocr_engine_type, _ocr_engine_type)
         logger.debug(f"[OCR] 使用已初始化的OCR引擎: {engine_name}")
@@ -149,29 +125,15 @@ def get_ocr_engine(force_type: Optional[str] = None) -> Tuple[Any, str]:
             engine_type = OCR_ENGINE_UMIOCR
             logger.info("UmiOCR可用，使用UmiOCR进行OCR识别")
         else:
-            # 2. 如果UmiOCR不可用，检查GPU可用性
-            if _gpu_available is None:  # 只在第一次检查
-                _gpu_available = check_gpu_availability()
-
-            # 根据硬件环境选择引擎
-            if _gpu_available:
-                # 如果有GPU，使用EasyOCR (GPU)
-                # 根据测试结果，EasyOCR在GPU模式下识别的文本量更多
-                engine_type = OCR_ENGINE_EASYOCR
-                logger.info("检测到GPU，使用EasyOCR (GPU模式)")
-            else:
-                # 如果只有CPU，使用RapidOCR (CPU)
-                # 根据测试结果，RapidOCR在CPU模式下速度更快且准确率更高
-                engine_type = OCR_ENGINE_RAPIDOCR
-                logger.info("未检测到GPU，使用RapidOCR (CPU模式)")
+            # 2. 如果UmiOCR不可用，使用RapidOCR
+            # RapidOCR是轻量级的OCR引擎，适合CPU环境
+            engine_type = OCR_ENGINE_RAPIDOCR
+            logger.info("UmiOCR不可用，使用RapidOCR (CPU模式)")
 
     # 创建引擎实例
     if engine_type == OCR_ENGINE_RAPIDOCR:
         _ocr_engine = create_rapidocr_engine()
         _ocr_engine_type = OCR_ENGINE_RAPIDOCR
-    elif engine_type == OCR_ENGINE_EASYOCR:
-        _ocr_engine = create_easyocr_engine(use_gpu=_gpu_available)
-        _ocr_engine_type = OCR_ENGINE_EASYOCR
     elif engine_type == OCR_ENGINE_UMIOCR:
         # UmiOCR引擎已经在check_umiocr_availability()中创建
         _ocr_engine = _umiocr_client
@@ -223,46 +185,7 @@ def create_rapidocr_engine() -> Any:
         logger.error(f"初始化RapidOCR引擎失败: {e}")
         return None
 
-def create_easyocr_engine(use_gpu: bool = True) -> Any:
-    """创建EasyOCR引擎实例
 
-    Args:
-        use_gpu: 是否使用GPU
-
-    Returns:
-        EasyOCR引擎实例
-    """
-    try:
-        # 导入 EasyOCR
-        import easyocr
-
-        # 检查GPU可用性
-        if use_gpu:
-            try:
-                import torch
-                if not torch.cuda.is_available():
-                    logger.warning("PyTorch未检测到CUDA，EasyOCR将使用CPU模式")
-                    use_gpu = False
-                else:
-                    logger.info(f"PyTorch检测到CUDA: {torch.cuda.get_device_name(0)}")
-            except ImportError:
-                logger.warning("未安装PyTorch，EasyOCR将使用CPU模式")
-                use_gpu = False
-
-        # 创建EasyOCR实例
-        logger.info(f"初始化 EasyOCR 引擎 ({'GPU' if use_gpu else 'CPU'}模式)")
-
-        # 支持中文和英文
-        engine = easyocr.Reader(['ch_sim', 'en'], gpu=use_gpu)
-        logger.debug("EasyOCR引擎初始化成功")
-        return engine
-    except ImportError as e:
-        logger.error(f"EasyOCR未安装或未找到: {e}")
-        logger.error("请安装EasyOCR: pip install easyocr")
-        return None
-    except Exception as e:
-        logger.error(f"初始化EasyOCR引擎失败: {e}")
-        return None
 
 def perform_ocr(engine: Any, engine_type: str, image: np.ndarray) -> List:
     """使用指定的OCR引擎执行文本识别
@@ -281,7 +204,6 @@ def perform_ocr(engine: Any, engine_type: str, image: np.ndarray) -> List:
     # 记录使用的OCR引擎类型
     engine_name = {
         OCR_ENGINE_RAPIDOCR: "RapidOCR (CPU)",
-        OCR_ENGINE_EASYOCR: "EasyOCR (GPU)" if _gpu_available else "EasyOCR (CPU)",
         OCR_ENGINE_UMIOCR: "UmiOCR API"
     }.get(engine_type, engine_type)
 
@@ -294,12 +216,6 @@ def perform_ocr(engine: Any, engine_type: str, image: np.ndarray) -> List:
             result, _ = engine(image)  # 忽略引擎返回的耗时
             elapsed_time = time.time() - start_time
             logger.debug(f"[OCR] RapidOCR处理完成，耗时: {elapsed_time:.4f} 秒")
-            return result
-        elif engine_type == OCR_ENGINE_EASYOCR:
-            # EasyOCR处理
-            result = engine.readtext(image)
-            elapsed_time = time.time() - start_time
-            logger.debug(f"[OCR] EasyOCR处理完成，耗时: {elapsed_time:.4f} 秒")
             return result
         elif engine_type == OCR_ENGINE_UMIOCR:
             # UmiOCR处理
@@ -334,12 +250,6 @@ def extract_text_from_ocr_result(result: List, engine_type: str) -> str:
             # RapidOCR结果格式: [[box, text, score], ...]
             for item in result:
                 text += item[1]
-        elif engine_type == OCR_ENGINE_EASYOCR:
-            # EasyOCR结果格式: [[box, text, score], ...]
-            for item in result:
-                if len(item) >= 2:
-                    text += item[1] + " "
-            text = text.strip()
         elif engine_type == OCR_ENGINE_UMIOCR:
             # UmiOCR结果格式: [{"text": "...", "score": 0.9, ...}, ...]
             for item in result:
@@ -390,7 +300,6 @@ def extract_text_from_image(image: np.ndarray) -> str:
         # 记录使用的OCR引擎类型
         engine_name = {
             OCR_ENGINE_RAPIDOCR: "RapidOCR (CPU)",
-            OCR_ENGINE_EASYOCR: "EasyOCR (GPU)" if _gpu_available else "EasyOCR (CPU)",
             OCR_ENGINE_UMIOCR: "UmiOCR API"
         }.get(engine_type, engine_type)
 
@@ -453,7 +362,6 @@ def extract_text_from_images_batch(images: List[np.ndarray]) -> List[str]:
         # 记录使用的OCR引擎类型
         engine_name = {
             OCR_ENGINE_RAPIDOCR: "RapidOCR (CPU)",
-            OCR_ENGINE_EASYOCR: "EasyOCR (GPU)" if _gpu_available else "EasyOCR (CPU)",
             OCR_ENGINE_UMIOCR: "UmiOCR API"
         }.get(engine_type, engine_type)
 

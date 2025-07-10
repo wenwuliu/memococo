@@ -53,7 +53,7 @@ CONFIG_SCHEMA = {
     "ocr_engine": {
         "type": "string",
         "default": "umiocr",
-        "enum": ["umiocr", "rapidocr", "easyocr"],
+        "enum": ["umiocr", "rapidocr"],
         "description": "使用的OCR引擎"
     },
     "ocr_batch_size": {
