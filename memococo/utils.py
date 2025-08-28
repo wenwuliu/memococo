@@ -323,7 +323,9 @@ def get_active_window_title_linux():
 
 def get_active_app_name():
     if sys.platform == WINDOWS:
-        return get_active_app_name_windows()
+        # 使用Windows 11窗口管理模块
+        from memococo.common.win11_window_manager import get_active_app_name as win11_get_active_app_name
+        return win11_get_active_app_name()
     elif sys.platform == MACOS:
         return get_active_app_name_osx()
     elif sys.platform.startswith(LINUX):
@@ -334,7 +336,9 @@ def get_active_app_name():
 
 def get_active_window_title():
     if sys.platform == WINDOWS:
-        return get_active_window_title_windows()
+        # 使用Windows 11窗口管理模块
+        from memococo.common.win11_window_manager import get_active_window_title as win11_get_active_window_title
+        return win11_get_active_window_title()
     elif sys.platform == MACOS:
         return get_active_window_title_osx()
     elif sys.platform.startswith(LINUX):

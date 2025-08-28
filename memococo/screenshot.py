@@ -7,8 +7,8 @@ from PIL import Image
 import datetime
 import io
 from memococo.config import screenshots_path, args,app_name_en,app_name_cn,screenshot_logger
-from memococo.database import insert_entry,get_empty_text_count,get_newest_empty_text,remove_entry,update_entry_text
-from memococo.ocr import extract_text_from_image
+from memococo.database import insert_entry,get_empty_text_count,get_newest_empty_text,remove_entry,update_entry_text,get_empty_text_batch,update_entries_text_batch,remove_entries_batch
+from memococo.ocr import extract_text_from_image, extract_text_from_images_batch
 import subprocess
 import pyautogui
 import psutil
@@ -16,9 +16,14 @@ from memococo.utils import (
     get_active_app_name,
     get_active_window_title,
     is_user_active,
-    get_cpu_temperature,
-    ImageVideoTool
+    get_cpu_temperature
 )
+
+# 导入ImageVideoTool类
+if sys.platform == "win32":
+    from memococo.common.win11_file_operations import Win11ImageVideoTool as ImageVideoTool
+else:
+    from memococo.utils import ImageVideoTool
 
 WINDOWS = "win32"
 LINUX = "linux"
@@ -136,33 +141,31 @@ def is_similar(img1, img2, similarity_threshold=0.9):
     return similarity >= similarity_threshold
 
 def take_active_on_windows():
-    from PIL import ImageGrab
-    import pygetwindow as gw
     """
     截取当前活动窗口的屏幕截图，并以 numpy 数组的形式返回。
+    使用Windows 11优化的截图模块，支持DPI感知和Windows 11特有窗口类型。
 
     Returns:
         np.ndarray: 当前活动窗口的截图数据（RGB 格式）。
     """
     try:
-        # 获取当前活动窗口
-        active_window = gw.getActiveWindow()
-        if active_window is None:
-            raise ValueError("无法获取当前活动窗口，请确保有活动窗口存在。")
-
-        # 获取活动窗口的边界 (left, top, width, height)
-        left, top, width, height = active_window.left, active_window.top, active_window.width, active_window.height
-
-        # 使用 Pillow 的 ImageGrab 截取指定区域
-        screenshot = ImageGrab.grab(bbox=(left, top, left + width, top + height))
-
-        # 将截图转换为 numpy 数组 (RGB 格式)
-        screenshot_array = np.array(screenshot)
-
+        # 使用Windows 11截图模块
+        from memococo.common.win11_screenshot import capture_active_window
+        
+        # 捕获活动窗口
+        screenshot_array = capture_active_window()
+        
+        if screenshot_array is None:
+            screenshot_logger.warning("无法使用Windows 11截图模块捕获活动窗口，尝试备用方法")
+            # 备用方法：使用传统的ImageGrab
+            from PIL import ImageGrab
+            screenshot = ImageGrab.grab()
+            screenshot_array = np.array(screenshot)
+        
         return screenshot_array
 
     except Exception as e:
-        print(f"发生错误: {e}")
+        screenshot_logger.error(f"捕获活动窗口时出错: {e}")
         return None
 
 def take_active_on_linux():
@@ -193,27 +196,72 @@ def take_active_window_screenshot():
 def take_screenshots(monitor=1):
     screenshots = []
 
-    with mss.mss() as sct:
-        for monitor in range(len(sct.monitors)):
-
-            if args.primary_monitor_only and monitor != 1:
-                continue
-
-            monitor_ = sct.monitors[monitor]
-            screenshot = np.array(sct.grab(monitor_))
-            screenshot = screenshot[:, :, [2, 1, 0]]
-            screenshots.append(screenshot)
+    # 检查是否为Windows 11系统
+    if sys.platform == WINDOWS:
+        try:
+            # 使用Windows 11截图模块
+            from memococo.common.win11_screenshot import capture_all_screens
+            
+            # 捕获所有显示器的屏幕内容
+            win11_screenshots = capture_all_screens()
+            
+            if win11_screenshots and len(win11_screenshots) > 0:
+                # 如果只需要主显示器
+                if args.primary_monitor_only:
+                    screenshots = [win11_screenshots[0]]
+                else:
+                    screenshots = win11_screenshots
+            else:
+                # 如果Windows 11截图模块失败，回退到传统方法
+                screenshot_logger.warning("Windows 11截图模块失败，回退到传统方法")
+                with mss.mss() as sct:
+                    for monitor_idx in range(len(sct.monitors)):
+                        if args.primary_monitor_only and monitor_idx != 1:
+                            continue
+                        monitor_ = sct.monitors[monitor_idx]
+                        screenshot = np.array(sct.grab(monitor_))
+                        screenshot = screenshot[:, :, [2, 1, 0]]
+                        screenshots.append(screenshot)
+        except Exception as e:
+            screenshot_logger.error(f"Windows 11截图失败: {e}，回退到传统方法")
+            # 回退到传统方法
+            with mss.mss() as sct:
+                for monitor_idx in range(len(sct.monitors)):
+                    if args.primary_monitor_only and monitor_idx != 1:
+                        continue
+                    monitor_ = sct.monitors[monitor_idx]
+                    screenshot = np.array(sct.grab(monitor_))
+                    screenshot = screenshot[:, :, [2, 1, 0]]
+                    screenshots.append(screenshot)
+    else:
+        # 非Windows系统使用传统方法
+        with mss.mss() as sct:
+            for monitor_idx in range(len(sct.monitors)):
+                if args.primary_monitor_only and monitor_idx != 1:
+                    continue
+                monitor_ = sct.monitors[monitor_idx]
+                screenshot = np.array(sct.grab(monitor_))
+                screenshot = screenshot[:, :, [2, 1, 0]]
+                screenshots.append(screenshot)
+    
+    # 获取活动窗口截图
     active_window_screenshot = take_active_window_screenshot()
+    
     # 如果screenshots数量大于2,则将screenshots列表中相似度超过95%的图片删除
     if len(screenshots) >= 2:
-        for i in range(len(screenshots)):
-            for j in range(i+1, len(screenshots)):
+        i = 0
+        while i < len(screenshots):
+            j = i + 1
+            while j < len(screenshots):
                 if is_similar(screenshots[i], screenshots[j]):
                     screenshots.pop(j)
-                    break
+                else:
+                    j += 1
+            i += 1
+    
+    # 添加活动窗口截图
     if active_window_screenshot is not None:
         screenshots.append(active_window_screenshot)
-
 
     return screenshots
 
@@ -348,6 +396,135 @@ import multiprocessing
 # 获取CPU核心数，用于参考
 _cpu_count = multiprocessing.cpu_count()
 
+def process_batch_ocr_idle(batch_entries, save_power=True):
+    """批量处理空闲时OCR任务
+
+    Args:
+        batch_entries: 批量条目列表
+        save_power: 是否启用省电模式
+
+    Returns:
+        处理结果统计 (成功数, 失败数, 删除数)
+    """
+    if not batch_entries:
+        return (0, 0, 0)
+
+    screenshot_logger.info(f"开始批量处理OCR任务，共 {len(batch_entries)} 条")
+
+    # 预加载图片和分类
+    local_images = []  # (entry, image_array)
+    backup_images = []  # (entry, image_stream)
+    failed_entries = []  # 需要删除的条目
+
+    for i, entry in enumerate(batch_entries):
+        # 每处理3个条目检查一次用户活跃状态
+        if i > 0 and i % 3 == 0:
+            if is_user_active():
+                screenshot_logger.info(f"用户变为活跃状态，中断批量OCR处理，已处理 {i}/{len(batch_entries)} 条")
+                break
+
+        try:
+            timestamp_dt = datetime.datetime.fromtimestamp(entry.timestamp)
+            date_folder = get_screenshot_path(timestamp_dt)
+            image_path = os.path.join(date_folder, f"{entry.timestamp}.webp")
+
+            # 检查本地图片是否存在
+            if os.path.exists(image_path):
+                # 本地图片存在，直接加载
+                try:
+                    image = Image.open(image_path)
+                    local_images.append((entry, np.array(image)))
+                    image.close()  # 释放PIL图像对象
+                except Exception as img_e:
+                    screenshot_logger.error(f"加载本地图片失败 {image_path}: {img_e}")
+                    failed_entries.append(entry.id)
+            else:
+                # 本地图片不存在，检查备份
+                try:
+                    image_video_tool = ImageVideoTool(date_folder)
+                    if image_video_tool.is_backed_up():
+                        image_filename = f"{entry.timestamp}.webp"
+                        image_stream = image_video_tool.query_image(image_filename)
+                        if image_stream:
+                            image = Image.open(image_stream)
+                            backup_images.append((entry, np.array(image)))
+                            image.close()  # 释放PIL图像对象
+                        else:
+                            screenshot_logger.debug(f"无法从备份获取图片: {image_filename}")
+                            failed_entries.append(entry.id)
+                    else:
+                        screenshot_logger.debug(f"文件夹未备份: {date_folder}")
+                        failed_entries.append(entry.id)
+                except Exception as backup_e:
+                    screenshot_logger.error(f"处理备份图片失败 {entry.id}: {backup_e}")
+                    failed_entries.append(entry.id)
+        except Exception as e:
+            screenshot_logger.error(f"预加载图片失败 {entry.id}: {e}")
+            failed_entries.append(entry.id)
+
+    # 批量OCR处理
+    success_updates = []
+    failed_count = 0
+
+    # 处理本地图片
+    if local_images:
+        try:
+            screenshot_logger.info(f"开始处理 {len(local_images)} 张本地图片")
+            images = [img for _, img in local_images]
+            texts = extract_text_from_images_batch(images)
+
+            for i, ((entry, _), text) in enumerate(zip(local_images, texts)):
+                if text and text.strip():
+                    success_updates.append((entry.id, text, ""))
+                    screenshot_logger.debug(f"本地图片OCR成功: {entry.id}, 文本长度: {len(text)}")
+                else:
+                    failed_entries.append(entry.id)
+                    screenshot_logger.debug(f"本地图片OCR结果为空: {entry.id}")
+
+            # 释放内存
+            del images
+            local_images.clear()
+        except Exception as e:
+            screenshot_logger.error(f"批量OCR处理本地图片失败: {e}")
+            failed_count += len(local_images)
+            local_images.clear()
+
+    # 处理备份图片
+    if backup_images:
+        try:
+            screenshot_logger.info(f"开始处理 {len(backup_images)} 张备份图片")
+            images = [img for _, img in backup_images]
+            texts = extract_text_from_images_batch(images)
+
+            for i, ((entry, _), text) in enumerate(zip(backup_images, texts)):
+                if text and text.strip():
+                    success_updates.append((entry.id, text, ""))
+                    screenshot_logger.debug(f"备份图片OCR成功: {entry.id}, 文本长度: {len(text)}")
+                else:
+                    failed_entries.append(entry.id)
+                    screenshot_logger.debug(f"备份图片OCR结果为空: {entry.id}")
+
+            # 释放内存
+            del images
+            backup_images.clear()
+        except Exception as e:
+            screenshot_logger.error(f"批量OCR处理备份图片失败: {e}")
+            failed_count += len(backup_images)
+            backup_images.clear()
+
+    # 批量更新数据库
+    success_count = 0
+    if success_updates:
+        success_count = update_entries_text_batch(success_updates)
+
+    # 批量删除失败的条目
+    deleted_count = 0
+    if failed_entries:
+        deleted_count = remove_entries_batch(failed_entries)
+
+    screenshot_logger.info(f"批量OCR处理完成: 成功 {success_count}, 失败 {failed_count}, 删除 {deleted_count}")
+    return (success_count, failed_count, deleted_count)
+
 def record_screenshots_thread(ignored_apps, ignored_apps_updated, save_power=True, idle_time=5, enable_compress=True):
     """截图主线程，负责截图、压缩图片和保存数据到数据库
 
@@ -398,70 +575,93 @@ def record_screenshots_thread(ignored_apps, ignored_apps_updated, save_power=Tru
             if not user_inactive_logged:
                 screenshot_logger.debug("User is inactive, sleeping...")
                 user_inactive_logged = True
-            # 查询待处理OCR数量
-            idle_data = get_newest_empty_text()
-            if idle_data and not power_saving_mode(save_power):
-                screenshot_logger.debug(f"Idle data: {idle_data}")
-                try:
-                    timestamp_dt = datetime.datetime.fromtimestamp(idle_data.timestamp)
-                    date_folder = get_screenshot_path(timestamp_dt)
-                    image_path = os.path.join(date_folder, f"{idle_data.timestamp}.webp")
 
-                    # 检查图片是否存在
-                    if not os.path.exists(image_path):
-                        # 检查该日期文件夹是否已备份
-                        image_video_tool = ImageVideoTool(date_folder)
-                        if image_video_tool.is_backed_up():
-                            screenshot_logger.info(f"Image not found but folder is backed up, trying to retrieve from backup: {image_path}")
-                            # 尝试从备份中获取图片
-                            image_filename = f"{idle_data.timestamp}.webp"
-                            image_stream = image_video_tool.query_image(image_filename)
+            # 检查是否需要批量处理OCR
+            if not power_saving_mode(save_power):
+                pending_count = get_empty_text_count()
 
-                            if image_stream:
-                                # 从备份中成功获取图片，进行OCR处理
-                                screenshot_logger.info(f"Successfully retrieved image from backup: {image_filename}")
-                                image = Image.open(image_stream)
-                                idle_ocr_text = extract_text_from_image(np.array(image))
+                # 根据待处理数量决定批量大小
+                if pending_count > 1000:
+                    batch_size = 15
+                elif pending_count > 500:
+                    batch_size = 10
+                elif pending_count > 100:
+                    batch_size = 5
+                else:
+                    batch_size = 1
 
-                                # 如果OCR文本为空，则删除待处理数据
-                                if not idle_ocr_text:
-                                    screenshot_logger.debug(f"OCR text is empty for backed up image: {image_filename}")
+                if batch_size > 1:
+                    # 批量处理模式
+                    screenshot_logger.info(f"待处理OCR数量: {pending_count}, 启用批量处理模式, 批量大小: {batch_size}")
+                    batch_entries = get_empty_text_batch(batch_size, oldest_first=True)
+                    if batch_entries:
+                        process_batch_ocr_idle(batch_entries, save_power)
+                        continue
+                else:
+                    # 单条处理模式（原有逻辑）
+                    idle_data = get_newest_empty_text()
+                    if idle_data:
+                        screenshot_logger.debug(f"Idle data: {idle_data}")
+                        try:
+                            timestamp_dt = datetime.datetime.fromtimestamp(idle_data.timestamp)
+                            date_folder = get_screenshot_path(timestamp_dt)
+                            image_path = os.path.join(date_folder, f"{idle_data.timestamp}.webp")
+
+                            # 检查图片是否存在
+                            if not os.path.exists(image_path):
+                                # 检查该日期文件夹是否已备份
+                                image_video_tool = ImageVideoTool(date_folder)
+                                if image_video_tool.is_backed_up():
+                                    screenshot_logger.info(f"Image not found but folder is backed up, trying to retrieve from backup: {image_path}")
+                                    # 尝试从备份中获取图片
+                                    image_filename = f"{idle_data.timestamp}.webp"
+                                    image_stream = image_video_tool.query_image(image_filename)
+
+                                    if image_stream:
+                                        # 从备份中成功获取图片，进行OCR处理
+                                        screenshot_logger.info(f"Successfully retrieved image from backup: {image_filename}")
+                                        image = Image.open(image_stream)
+                                        idle_ocr_text = extract_text_from_image(np.array(image))
+
+                                        # 如果OCR文本为空，则删除待处理数据
+                                        if not idle_ocr_text:
+                                            screenshot_logger.debug(f"OCR text is empty for backed up image: {image_filename}")
+                                            remove_entry(idle_data.id)
+                                            continue
+
+                                        # 更新OCR文本
+                                        update_entry_text(idle_data.id, idle_ocr_text, "")
+                                        screenshot_logger.info(f"Updated OCR text from backed up image: {image_filename}")
+                                        continue
+                                    else:
+                                        # 无法从备份中获取图片，删除待处理数据
+                                        screenshot_logger.warning(f"Failed to retrieve image from backup: {image_filename}")
+                                        remove_entry(idle_data.id)
+                                        continue
+                                else:
+                                    # 文件夹未备份且图片不存在，删除待处理数据
+                                    screenshot_logger.warning(f"Image not found and folder not backed up: {image_path}")
                                     remove_entry(idle_data.id)
                                     continue
 
-                                # 更新OCR文本
-                                update_entry_text(idle_data.id, idle_ocr_text, "")
-                                screenshot_logger.info(f"Updated OCR text from backed up image: {image_filename}")
-                                continue
-                            else:
-                                # 无法从备份中获取图片，删除待处理数据
-                                screenshot_logger.warning(f"Failed to retrieve image from backup: {image_filename}")
+                            # 图片存在，直接进行OCR处理
+                            idle_ocr_text = extract_text_from_image(np.array(Image.open(image_path)))
+
+                            # 如果idle_ocr_text 为空，则删除待处理数据
+                            if not idle_ocr_text:
+                                screenshot_logger.debug(f"OCR text is empty for image: {image_path}")
                                 remove_entry(idle_data.id)
                                 continue
-                        else:
-                            # 文件夹未备份且图片不存在，删除待处理数据
-                            screenshot_logger.warning(f"Image not found and folder not backed up: {image_path}")
+
+                            # 更新OCR文本
+                            update_entry_text(idle_data.id, idle_ocr_text, "")
+                            screenshot_logger.info(f"Updated OCR text for image: {image_path}")
+                            continue
+                        except Exception as e:
+                            screenshot_logger.error(f"Error processing idle data: {e}")
+                            # 删除待处理数据
                             remove_entry(idle_data.id)
                             continue
-
-                    # 图片存在，直接进行OCR处理
-                    idle_ocr_text = extract_text_from_image(np.array(Image.open(image_path)))
-
-                    # 如果idle_ocr_text 为空，则删除待处理数据
-                    if not idle_ocr_text:
-                        screenshot_logger.debug(f"OCR text is empty for image: {image_path}")
-                        remove_entry(idle_data.id)
-                        continue
-
-                    # 更新OCR文本
-                    update_entry_text(idle_data.id, idle_ocr_text, "")
-                    screenshot_logger.info(f"Updated OCR text for image: {image_path}")
-                    continue
-                except Exception as e:
-                    screenshot_logger.error(f"Error processing idle data: {e}")
-                    # 删除待处理数据
-                    remove_entry(idle_data.id)
-                    continue
         else:
             user_inactive_logged = False
             idle_time = default_idle_time

@@ -12,10 +12,16 @@ import logging
 from typing import Dict, Any
 
 # 导入共用模块
-from memococo.common.config_manager import get_app_data_folder, ConfigManager
+from memococo.common.config_manager import ConfigManager
 from memococo.common.file_utils import ensure_directory_exists
 from memococo.common.env_config import update_config_from_env
 from memococo.config_schema import CONFIG_SCHEMA, DEFAULT_CONFIG
+
+# 导入Windows 11数据存储路径管理模块
+if sys.platform == "win32":
+    from memococo.common.win11_data_storage import get_app_data_folder
+else:
+    from memococo.common.config_manager import get_app_data_folder
 
 # 应用信息
 app_name_cn = "时光胶囊"
@@ -63,8 +69,14 @@ else:
 db_path = os.path.join(appdata_folder, f"{app_name_en}.db")
 screenshots_path = os.path.join(appdata_folder, "screenshots")
 
-# 确保目录存在
+# 确保目录存在并具有正确的权限
 ensure_directory_exists(screenshots_path)
+
+# 如果是Windows 11，确保目录权限正确
+if sys.platform == "win32":
+    from memococo.common.win11_data_storage import ensure_directory_permissions
+    ensure_directory_permissions(appdata_folder)
+    ensure_directory_permissions(screenshots_path)
 
 # 初始化日志记录
 from memococo.common.logging import initialize_logging, get_logger

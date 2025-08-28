@@ -381,6 +381,78 @@ def search_entries(keywords: List[str], app: str = None, limit: int = 100, offse
         return []
 
 
+def update_entries_text_batch(updates: List[Tuple[int, str, str]]) -> int:
+    """批量更新条目的文本内容
+
+    Args:
+        updates: 更新列表，每个元素为(entry_id, text, jsontext)的元组
+
+    Returns:
+        成功更新的条目数量
+    """
+    if not updates:
+        return 0
+
+    try:
+        success_count = 0
+        for entry_id, text, jsontext in updates:
+            try:
+                DatabaseManager.execute(
+                    "UPDATE entries SET text = ?, jsontext = ? WHERE id = ?",
+                    (text, jsontext, entry_id)
+                )
+                success_count += 1
+            except Exception as e:
+                logger.error(f"更新条目 {entry_id} 失败: {e}")
+
+        logger.info(f"批量更新完成，成功更新 {success_count}/{len(updates)} 条记录")
+        return success_count
+    except Exception as e:
+        logger.error(f"批量更新条目失败: {e}")
+        return 0
+
+
+def remove_entries_batch(entry_ids: List[int]) -> int:
+    """批量删除条目
+
+    Args:
+        entry_ids: 要删除的条目ID列表
+
+    Returns:
+        成功删除的条目数量
+    """
+    if not entry_ids:
+        return 0
+
+    try:
+        success_count = 0
+        for entry_id in entry_ids:
+            try:
+                DatabaseManager.execute("DELETE FROM entries WHERE id = ?", (entry_id,))
+                success_count += 1
+            except Exception as e:
+                logger.error(f"删除条目 {entry_id} 失败: {e}")
+
+        logger.info(f"批量删除完成，成功删除 {success_count}/{len(entry_ids)} 条记录")
+        return success_count
+    except Exception as e:
+        logger.error(f"批量删除条目失败: {e}")
+        return 0
+
+
+def get_empty_text_batch(batch_size: int = 5, oldest_first: bool = True) -> List[Entry]:
+    """批量获取空文本条目（别名函数，保持向后兼容）
+
+    Args:
+        batch_size: 批处理大小
+        oldest_first: 是否按时间升序（从旧到新）排序，默认为True
+
+    Returns:
+        空文本条目列表
+    """
+    return get_batch_empty_text(batch_size, oldest_first)
+
+
 def close_db_connections():
     """关闭所有数据库连接"""
     try:

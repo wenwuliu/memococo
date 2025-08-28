@@ -9,7 +9,7 @@ from memococo.ocr_factory import (
     extract_text_from_image as factory_extract_text_from_image,
     extract_text_from_images_batch as factory_extract_text_from_images_batch,
     preprocess_image_for_ocr,
-    check_gpu_availability,
+    check_umiocr_availability,
     get_ocr_engine,
     perform_ocr
 )
@@ -145,9 +145,9 @@ def preprocess_image(image: np.ndarray) -> np.ndarray:
 if __name__ == "__main__":
     import mss
 
-    # 检查GPU可用性
-    gpu_available = check_gpu_availability()
-    print(f"GPU可用性: {gpu_available}")
+    # 检查UmiOCR可用性
+    umiocr_available = check_umiocr_availability()
+    print(f"UmiOCR可用性: {umiocr_available}")
 
     # 获取OCR引擎
     engine, engine_type = get_ocr_engine()

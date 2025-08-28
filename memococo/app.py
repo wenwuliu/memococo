@@ -10,6 +10,9 @@ from babel import Locale
 # 导入配置模块
 from memococo.config import appdata_folder, screenshots_path, app_name_cn, app_version, get_settings, save_settings, main_logger
 
+# 导入Windows 11检测模块
+from memococo.common.win11_detector import check_windows_11_compatibility
+
 # 导入数据库模块
 from memococo.database import create_db, get_timestamps, get_unique_apps, get_ocr_text, search_entries
 
@@ -465,6 +468,24 @@ def main():
     """
     # 显示应用程序信息
     main_logger.info(f"Starting {app_name_cn} (MemoCoco) v{app_version}")
+    
+    # 检查Windows 11兼容性
+    if sys.platform == "win32":
+        main_logger.info("检查Windows 11兼容性...")
+        if not check_windows_11_compatibility():
+            main_logger.error("不兼容的操作系统版本，应用程序将退出")
+            return
+        main_logger.info("Windows 11兼容性检查通过")
+        
+        # 检查管理员权限
+        from memococo.common.win11_permission_manager import is_admin, request_admin_privileges
+        if not is_admin():
+            main_logger.info("应用程序未以管理员身份运行，尝试请求管理员权限...")
+            if request_admin_privileges():
+                main_logger.info("已请求管理员权限，应用程序将以管理员身份重新启动")
+                return
+            else:
+                main_logger.warning("用户拒绝授予管理员权限，某些功能可能受限")
 
     # 初始化应用
     initialize_app()
